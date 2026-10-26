@@ -1,0 +1,68 @@
+{
+  "name": "vympa-connect",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
+  "scripts": {
+    "setup": "node infrastructure/scripts/setup.mjs",
+    "prepare": "husky",
+    "dev": "npm run build -w @vympa/shared && concurrently -k -n shared,web,api \"npm run dev -w @vympa/shared\" \"npm run dev -w @vympa/web\" \"npm run dev -w @vympa/api\"",
+    "dev:web": "npm run build -w @vympa/shared && npm run dev -w @vympa/web",
+    "dev:api": "npm run build -w @vympa/shared && npm run dev -w @vympa/api",
+    "build": "npm run build -w @vympa/shared && npm run build -w @vympa/api && npm run build -w @vympa/web",
+    "typecheck": "npm run build -w @vympa/shared && npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build -w @vympa/shared && npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:generate": "npm run db:generate -w @vympa/api",
+    "db:migrate": "npm run db:migrate -w @vympa/api",
+    "db:deploy": "npm run db:deploy -w @vympa/api",
+    "db:check": "npm run db:check -w @vympa/api",
+    "check:cycles": "node infrastructure/scripts/check-cycles.mjs",
+    "test:smoke:api": "node infrastructure/scripts/smoke-api.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "concurrently": "10.0.6",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": "prettier --write"
+  },
+  "overrides": {
+    "multer": "2.5.0"
+  },
+  "allowScripts": {
+    "argon2@0.45.1": true,
+    "prisma@7.10.1": true,
+    "@prisma/engines@7.10.1": true,
+    "unrs-resolver@1.12.2": true,
+    "@scarf/scarf": false,
+    "@parcel/watcher": false
+  }
+}

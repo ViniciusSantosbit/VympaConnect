@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/web",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}

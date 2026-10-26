@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Execute npm run setup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Execute npm run setup}
+      POSTGRES_DB: ${POSTGRES_DB:-vympa_connect}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  redis:
+    image: redis:8-alpine
+    profiles: ['queues']
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  api:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vympa_connect}?schema=public
+      CORS_ORIGINS: http://localhost:8080,http://127.0.0.1:8080
+      LOG_LEVEL: info
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  web:
+    profiles: ['apps']
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000/api/v1
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      - api
+volumes:
+  postgres_data:
+  redis_data:

@@ -1,0 +1,41 @@
+name: Quality
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: vympa
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: vympa_connect
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U vympa -d vympa_connect"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://vympa:ci-only-password@localhost:5432/vympa_connect?schema=public
+      HUSKY: '0'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npm run db:deploy
+      - run: npm run db:check
+      - run: npm run test:smoke:api
+      - run: npm run check:cycles
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
