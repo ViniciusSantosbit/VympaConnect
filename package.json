@@ -31,7 +31,16 @@
     "db:deploy": "npm run db:deploy -w @vympa/api",
     "db:check": "npm run db:check -w @vympa/api",
     "check:cycles": "node infrastructure/scripts/check-cycles.mjs",
-    "test:smoke:api": "node infrastructure/scripts/smoke-api.mjs"
+    "test:smoke:api": "node infrastructure/scripts/smoke-api.mjs",
+    "db:validate": "npm run db:validate -w @vympa/api",
+    "db:status": "npm run db:status -w @vympa/api",
+    "db:supabase:check": "npm run db:supabase:check -w @vympa/api",
+    "db:supabase:prepare": "npm run db:supabase:prepare -w @vympa/api",
+    "start:supabase": "npm run start:supabase -w @vympa/api",
+    "auth:configure-local": "npm run auth:configure-local -w @vympa/api --",
+    "auth:bootstrap-owner": "npm run auth:bootstrap-owner -w @vympa/api --",
+    "auth:recover-mfa": "npm run auth:recover-mfa -w @vympa/api --",
+    "test:integration:database": "npm run test:integration:database -w @vympa/api"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

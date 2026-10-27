@@ -1,8 +1,10 @@
+import { Public } from '../auth/auth.guards.js';
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { HealthResponse } from '@vympa/shared';
 import { HealthService } from './health.service.js';
 @ApiTags('Health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health: HealthService) {}

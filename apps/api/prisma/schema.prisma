@@ -1,17 +1,112 @@
 generator client {
- provider = "prisma-client"
- output = "../src/generated/prisma"
- moduleFormat = "esm"
-}
-datasource db {
- provider = "postgresql"
-}
-model SystemMetadata {
- id String @id @default(uuid()) @db.Uuid
- key String @unique @db.VarChar(100)
- value String
- createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
- updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
- @@map("system_metadata")
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
 }
 
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "vympa_private"]
+}
+
+model SystemMetadata {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("system_metadata")
+  @@schema("public")
+}
+
+enum AdminRole {
+  OWNER
+  ADMIN
+
+  @@schema("vympa_private")
+}
+
+model AdminProfile {
+  id                String               @id @default(uuid()) @db.Uuid
+  identityId        String               @unique @map("identity_id") @db.Uuid
+  email             String               @unique @db.VarChar(254)
+  role              AdminRole            @default(ADMIN)
+  active            Boolean              @default(true)
+  recoveryRequired  Boolean              @default(false) @map("recovery_required")
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  invitations       AdminInvitation[]
+  auditEvents       AdminAuditEvent[]
+  recoveryRequests  MfaRecoveryRequest[] @relation("RecoveryRequester")
+  recoveryApprovals MfaRecoveryRequest[] @relation("RecoveryApprover")
+
+  @@index([active, role])
+  @@map("admin_profiles")
+  @@schema("vympa_private")
+}
+
+model AdminInvitation {
+  id         String       @id @default(uuid()) @db.Uuid
+  email      String       @db.VarChar(254)
+  identityId String?      @map("identity_id") @db.Uuid
+  role       AdminRole    @default(ADMIN)
+  issuedById String       @map("issued_by_id") @db.Uuid
+  issuedBy   AdminProfile @relation(fields: [issuedById], references: [id], onDelete: Restrict)
+  expiresAt  DateTime     @map("expires_at") @db.Timestamptz(3)
+  acceptedAt DateTime?    @map("accepted_at") @db.Timestamptz(3)
+  revokedAt  DateTime?    @map("revoked_at") @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([identityId, email, expiresAt])
+  @@index([issuedById])
+  @@map("admin_invitations")
+  @@schema("vympa_private")
+}
+
+model AuthSession {
+  id           String    @id @db.VarChar(64)
+  identityId   String    @map("identity_id") @db.Uuid
+  tokensCipher String    @map("tokens_cipher")
+  csrfHash     String    @map("csrf_hash") @db.VarChar(64)
+  recovery     Boolean   @default(false)
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([identityId, revokedAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+  @@schema("vympa_private")
+}
+
+model AdminAuditEvent {
+  id        String        @id @default(uuid()) @db.Uuid
+  actorId   String?       @map("actor_id") @db.Uuid
+  actor     AdminProfile? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action    String        @db.VarChar(80)
+  targetId  String?       @map("target_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
+  @@map("admin_audit_events")
+  @@schema("vympa_private")
+}
+
+model MfaRecoveryRequest {
+  id            String        @id @default(uuid()) @db.Uuid
+  identityId    String        @map("identity_id") @db.Uuid
+  approvedById  String?       @map("approved_by_id") @db.Uuid
+  approvedBy    AdminProfile? @relation("RecoveryApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  requester     AdminProfile  @relation("RecoveryRequester", fields: [identityId], references: [identityId], onDelete: Restrict)
+  approvedAt    DateTime?     @map("approved_at") @db.Timestamptz(3)
+  executedAt    DateTime?     @map("executed_at") @db.Timestamptz(3)
+  caseReference String?       @map("case_reference") @db.VarChar(64)
+  expiresAt     DateTime      @map("expires_at") @db.Timestamptz(3)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([identityId, expiresAt])
+  @@map("mfa_recovery_requests")
+  @@schema("vympa_private")
+}

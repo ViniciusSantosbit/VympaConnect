@@ -15,7 +15,7 @@ async function bootstrap() {
       app,
       new DocumentBuilder()
         .setTitle('VYMPA Connect API')
-        .setDescription('Etapa 01 — fundação de desenvolvimento. Sem autenticação.')
+        .setDescription('Autenticação administrativa Supabase, MFA e autorização por perfil ativo.')
         .setVersion('1.0')
         .build(),
     );

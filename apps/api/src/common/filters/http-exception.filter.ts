@@ -10,8 +10,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    if (status >= 500)
-      this.logger.error({ err: exception, requestId: request.id }, 'Erro interno na API');
+    if (status >= 500) this.logger.error({ status, requestId: request.id }, 'Erro interno na API');
     const payload = exception instanceof HttpException ? exception.getResponse() : null;
     const message =
       status >= 500

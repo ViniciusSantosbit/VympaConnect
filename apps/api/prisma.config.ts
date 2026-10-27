@@ -1,11 +1,22 @@
-import { config } from 'dotenv';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'prisma/config';
-config({ path: fileURLToPath(new URL('./.env', import.meta.url)), quiet: true });
-const databaseUrl = process.env.DATABASE_URL?.trim();
+import { databaseTarget, loadDatabaseEnvironment } from './src/config/database-environment.ts';
+// A CLI nunca recebe datasource remoto nesta etapa, mesmo se invocada diretamente.
+if (databaseTarget() !== 'local') throw new Error('CLI Prisma remota bloqueada nesta etapa.');
+const args = process.argv.slice(2);
+if (
+  args.includes('reset') ||
+  (args.includes('db') && (args.includes('push') || args.includes('execute')))
+)
+  throw new Error('Operação Prisma destrutiva bloqueada.');
+const offline =
+  args.includes('generate') ||
+  args.includes('validate') ||
+  (args.includes('diff') && args.includes('--from-schema') && args.includes('--to-schema'));
+if (!offline) loadDatabaseEnvironment();
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: { path: 'prisma/migrations' },
-  // Generate/validate não precisam de banco. Migrate exige datasource explícito.
-  ...(databaseUrl ? { datasource: { url: databaseUrl } } : {}),
+  ...(!offline && process.env.DATABASE_URL
+    ? { datasource: { url: process.env.DATABASE_URL } }
+    : {}),
 });

@@ -57,7 +57,13 @@ try {
   if (interrupted) throw new Error(`Smoke test interrompido por ${interrupted}.`);
   child = spawn(process.execPath, ['--env-file-if-exists=.env', 'dist/main.js'], {
     cwd: new URL('../../apps/api/', import.meta.url),
-    env: { ...process.env, NODE_ENV: 'development', HOST: '127.0.0.1', PORT: String(port) },
+    env: {
+      ...process.env,
+      VYMPA_DATABASE_TARGET: 'local',
+      NODE_ENV: 'development',
+      HOST: '127.0.0.1',
+      PORT: String(port),
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.on('error', (error) => {

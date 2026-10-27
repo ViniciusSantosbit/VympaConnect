@@ -1,9 +1,11 @@
 import { NavLink, Outlet } from 'react-router';
 import { modules } from '@vympa/shared';
 import { Blocks, ChevronRight, Menu, ShieldAlert, X } from 'lucide-react';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 export function AppLayout() {
+  const { session, logout, error } = useAuth();
   const [open, setOpen] = useState(false);
   return (
     <div className="app-shell">
@@ -35,9 +37,14 @@ export function AppLayout() {
               <ChevronRight size={14} />
             </NavLink>
           ))}
+          {session?.role === 'OWNER' && (
+            <NavLink to="/admin/users" className="nav-item" onClick={() => setOpen(false)}>
+              Administradores <ChevronRight size={14} />
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-footer">
-          <span className="status-dot" /> Fundação técnica <small>v0.1.0 · Etapa 01</small>
+          <span className="status-dot" /> Acesso privado <small>MFA · {session?.role}</small>
         </div>
       </aside>
       {open && (
@@ -60,22 +67,35 @@ export function AppLayout() {
               {open ? <X /> : <Menu />}
             </Button>
             <span className="breadcrumb">
-              Workspace <ChevronRight size={13} /> Fundação
+              Workspace <ChevronRight size={13} /> Administração
             </span>
           </div>
           <span className="environment">
             <span className="status-dot" />
-            {import.meta.env.DEV ? 'DESENVOLVIMENTO' : 'PRÉVIA DA FUNDAÇÃO'}
+            {import.meta.env.DEV ? 'DESENVOLVIMENTO' : 'ACESSO PRIVADO'}
           </span>
         </header>
         <main id="main" tabIndex={-1}>
+          {error && (
+            <p role="alert" className="p-4">
+              {error}
+            </p>
+          )}
           <Outlet />
         </main>
         <footer className="page-footer">
           <span>
-            <ShieldAlert size={14} /> Ambiente sem autenticação · Não inserir dados reais
+            <ShieldAlert size={14} /> Sessão individual · MFA obrigatório
           </span>
-          <span>VYMPA Connect</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void logout();
+            }}
+          >
+            Sair
+          </Button>
         </footer>
       </div>
     </div>

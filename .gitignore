@@ -9,3 +9,8 @@ test-results/
 *.log
 apps/api/src/generated/
 
+
+!apps/api/.env.supabase.example
+
+supabase/.temp/
+supabase/.branches/

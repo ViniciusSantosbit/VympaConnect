@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { authSettings } from '../modules/auth/auth-config.js';
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -38,7 +39,8 @@ export function validateEnvironment(input: Record<string, unknown>): Environment
     );
   if (result.data.NODE_ENV === 'production')
     throw new Error(
-      'Etapa 01 não autorizada para produção: implementar autenticação, MFA e autorização primeiro.',
+      'Execução não autorizada para produção: concluir validação da infraestrutura Auth isolada, políticas e recuperação operacional.',
     );
+  authSettings(input);
   return result.data;
 }

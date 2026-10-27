@@ -4,16 +4,19 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { loadDatabaseEnvironment } from './config/database-environment.js';
+loadDatabaseEnvironment();
 import { validateEnvironment } from './config/environment.js';
 import { DatabaseModule } from './database/database.module.js';
+import { AuthModule, CsrfGuard } from './modules/auth/auth.module.js';
+import { JwtSessionGuard, RolesGuard } from './modules/auth/auth.guards.js';
+import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: fileURLToPath(new URL('../.env', import.meta.url)),
-      ignoreEnvFile: process.env.NODE_ENV === 'test',
+      ignoreEnvFile: true,
       validate: validateEnvironment,
     }),
     LoggerModule.forRootAsync({
@@ -45,7 +48,14 @@ import { HealthModule } from './modules/health/health.module.js';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     DatabaseModule,
     HealthModule,
+    AuthModule,
+    AdminUsersModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
+    { provide: APP_GUARD, useClass: JwtSessionGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

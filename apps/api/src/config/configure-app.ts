@@ -9,10 +9,21 @@ export function configureApp(app: INestApplication) {
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: config.getOrThrow<string[]>('CORS_ORIGINS'),
-    credentials: false,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   app.use(helmet());
+  app.use(
+    (
+      request: import('express').Request,
+      response: import('express').Response,
+      next: import('express').NextFunction,
+    ) => {
+      if (/^\/api\/v1\/(auth|admin)(\/|$)/.test(request.path))
+        response.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+  );
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

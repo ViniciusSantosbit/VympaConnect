@@ -1,5 +1,9 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
+import { loadDatabaseEnvironment } from '../src/config/database-environment.ts';
+if (process.env.VYMPA_DATABASE_TARGET === 'supabase')
+  throw new Error('Teste de escrita restrito ao banco local.');
+loadDatabaseEnvironment();
 if (!process.env.DATABASE_URL) throw new Error('Configure DATABASE_URL em apps/api/.env');
 const db = new PrismaClient({
   adapter: new PrismaPg({
