@@ -10,8 +10,6 @@ import { configureApp } from '../dist/config/configure-app.js';
 
 describe('Composição completa da API', () => {
   it('resolve providers reais, configura filtros e gera OpenAPI sem conectar banco neste teste', async () => {
-    process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/test';
-    process.env.LOG_LEVEL = 'silent';
     const module = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(DatabaseService)
       .useValue({})

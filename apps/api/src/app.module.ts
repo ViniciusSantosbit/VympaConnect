@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { validateEnvironment } from './config/environment.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -11,7 +12,8 @@ import { HealthModule } from './modules/health/health.module.js';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', 'apps/api/.env'],
+      envFilePath: fileURLToPath(new URL('../.env', import.meta.url)),
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
       validate: validateEnvironment,
     }),
     LoggerModule.forRootAsync({

@@ -41,6 +41,10 @@ npm run dev
 
 Na primeira instalação sem lockfile, npm install é equivalente. O lockfile está versionado para instalações reproduzíveis. npm run setup copia exemplos sem sobrescrever .env existentes. .env raiz configura Compose; apps/api/.env configura a API e Prisma; apps/web/.env só contém valores públicos do Vite. Se mudar usuário/senha/porta do PostgreSQL, atualizar DATABASE_URL também. Nunca usar credenciais locais em um ambiente real.
 
+A API e a CLI Prisma resolvem exclusivamente `apps/api/.env` a partir de seus arquivos, sem depender do diretório do terminal. Não carregam o `.env` da raiz. Variáveis já definidas no processo têm precedência; revise o ambiente antes de comandos de banco. Não existe URL fallback: generate/validate funcionam sem banco configurado, mas migrations exigem `DATABASE_URL` explícita. Os testes isolados definem valores fictícios no setup e ignoram arquivos `.env`.
+
+Finais de linha LF são definidos em `.gitattributes` e no Prettier. Não é necessário alterar configurações globais do Git. Validações desta correção e bloqueios locais: [Script 01](docs/architecture/SCRIPT-01-CORRECOES.md).
+
 `npm run dev` inicia shared em watch, frontend e API. Também é possível usar `npm run dev:web` e `npm run dev:api` em terminais separados.
 
 - Web: http://localhost:5173

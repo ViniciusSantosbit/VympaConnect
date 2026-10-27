@@ -4,6 +4,8 @@ PostgreSQL 18 no Compose. O volume usa /var/lib/postgresql conforme a organizaç
 
 Prisma 7 usa prisma.config.ts para a URL da CLI e PrismaPg para o runtime. O client é gerado em src/generated/prisma, ignorado no Git. Rodar npm run db:generate após npm ci, e antes de compilar. Build e typecheck já fazem isso.
 
+API e CLI carregam somente `apps/api/.env`, por caminho relativo ao arquivo de implementação; o `.env` raiz pertence ao Compose. Ambiente do processo prevalece. A CLI não possui fallback de conexão: sem DATABASE_URL, geração/validação continuam disponíveis e comandos de migration são recusados antes de conectar. Nunca usar URL remota para a validação local.
+
 A migration 20261026000100_foundation cria somente system_metadata, com UUID, chave única, valor e timestamps. A checagem npm run db:check usa upsert da chave técnica foundation e valida leitura/escrita. Requer build prévio e migration aplicada. Não apaga dados.
 
 ## Comandos
