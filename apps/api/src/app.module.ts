@@ -12,6 +12,7 @@ import { AuthModule, CsrfGuard } from './modules/auth/auth.module.js';
 import { JwtSessionGuard, RolesGuard } from './modules/auth/auth.guards.js';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -48,6 +49,7 @@ import { HealthModule } from './modules/health/health.module.js';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     DatabaseModule,
     HealthModule,
+    DashboardModule,
     AuthModule,
     AdminUsersModule,
   ],

@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router';
+import { lazy, Suspense } from 'react';
 import { modules } from '@vympa/shared';
-import { AppLayout } from '@/components/layout/AppLayout';
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { ModulePlaceholder } from '@/components/shared/ModulePlaceholder';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import {
@@ -10,7 +11,12 @@ import {
   MfaPage,
   CompleteAccessPage,
 } from '@/features/auth/AuthPages';
-import { AdminDashboard } from '@/features/auth/AdminDashboard';
+import { LoadingState } from '@/components/shared/DashboardComponents';
+const DashboardPage = lazy(() =>
+  import('@/features/dashboard/DashboardPage').then((module) => ({
+    default: module.DashboardPage,
+  })),
+);
 import { AdminUsersPage } from '@/features/admin-users/AdminUsersPage';
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -23,16 +29,26 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        element: <AppLayout />,
+        element: <AdminLayout />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
-          { path: '/dashboard', element: <AdminDashboard /> },
+          {
+            path: '/dashboard',
+            element: (
+              <Suspense fallback={<LoadingState />}>
+                <DashboardPage />
+              </Suspense>
+            ),
+          },
           {
             element: <ProtectedRoute owner />,
-            children: [{ path: '/admin/users', element: <AdminUsersPage /> }],
+            children: [
+              { path: '/admin', element: <AdminUsersPage /> },
+              { path: '/admin/users', element: <AdminUsersPage /> },
+            ],
           },
           ...modules
-            .filter(([path]) => path !== 'dashboard')
+            .filter(([path]) => path !== 'dashboard' && path !== 'admin')
             .map(([path, label]) => ({ path, element: <ModulePlaceholder label={label} /> })),
           { path: '*', element: <ModulePlaceholder label="Página não encontrada" /> },
         ],

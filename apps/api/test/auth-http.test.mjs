@@ -104,7 +104,7 @@ beforeEach(async () => {
         return { count: 1 };
       }),
     },
-    adminAuditEvent: { create: jest.fn(async () => ({})) },
+    adminAuditEvent: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []) },
     authSession: {
       create: jest.fn(async ({ data }) => {
         const value = { revokedAt: null, ...data };
@@ -156,6 +156,33 @@ async function login() {
   return response;
 }
 describe('Integração HTTP de autenticação (banco e transporte Auth simulados)', () => {
+  it('protege o resumo do dashboard com sessão, MFA e perfil ativo', async () => {
+    await agent.get('/api/v1/dashboard/summary').expect(401);
+    identity.aal = 'aal1';
+    await login();
+    await agent.get('/api/v1/dashboard/summary').expect(403);
+    identity.aal = 'aal2';
+    const response = await agent.get('/api/v1/dashboard/summary').expect(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(Object.values(response.body.metrics)).toEqual(Array(8).fill(null));
+    expect(response.body.businessStatus).toBe('modules_pending');
+    profile.active = false;
+    await agent.get('/api/v1/dashboard/summary').expect(403);
+  });
+  it('permite resumo para ADMIN com MFA e restringe atividades à própria conta', async () => {
+    profile.role = 'ADMIN';
+    await login();
+    await agent.get('/api/v1/dashboard/summary').expect(200);
+    expect(db.adminAuditEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ actorId: profileId }, { targetId: identityId }, { targetId: profileId }],
+        }),
+        take: 5,
+        select: { id: true, action: true, createdAt: true },
+      }),
+    );
+  });
   it('mantém health público e recusa cookie ou bearer inválidos', async () => {
     await agent.get('/api/v1/health').expect(200);
     await agent.get('/api/v1/auth/me').expect(401);

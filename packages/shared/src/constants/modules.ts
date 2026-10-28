@@ -8,6 +8,7 @@ export const modules = [
   ['goals', 'Metas'],
   ['clients', 'Clientes'],
   ['contracts', 'Contratos'],
-  ['ai', 'IA'],
-  ['settings', 'Administração'],
+  ['ai', 'Assistente IA'],
+  ['admin', 'Administração'],
+  ['settings', 'Configurações'],
 ] as const;
