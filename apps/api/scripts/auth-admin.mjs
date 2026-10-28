@@ -5,10 +5,18 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
+import {
+  AdminCommandError,
+  parseAdminOptions,
+  assertLocalAdminTargets,
+  assertBootstrapIdentity,
+  acquireAdminLock,
+  safeAdminDiagnostic,
+} from './auth-admin-support.mjs';
 
 const [command, ...args] = process.argv.slice(2);
-const options = Object.fromEntries(args.map((arg) => arg.replace(/^--/, '').split('=')));
 let db;
+let stage = 'Validação dos argumentos';
 try {
   if (args.includes('--help') || !command) {
     console.log(
@@ -25,12 +33,18 @@ try {
     );
     process.exit(0);
   }
+  const options = parseAdminOptions(command, args);
+  stage = 'Configuração local';
   if (process.env.VYMPA_DATABASE_TARGET && process.env.VYMPA_DATABASE_TARGET !== 'local')
-    throw new Error();
+    throw new AdminCommandError('Operação bloqueada: VYMPA_DATABASE_TARGET deve ser local.');
   process.env.VYMPA_DATABASE_TARGET = 'local';
   loadDatabaseEnvironment();
   const settings = requireAuthSettings();
-  if (!settings.secretKey) throw new Error();
+  assertLocalAdminTargets(settings, process.env.DATABASE_URL, process.env.NODE_ENV);
+  if (!settings.secretKey)
+    throw new AdminCommandError(
+      'Chave administrativa Auth local ausente; execute auth:configure-local.',
+    );
   const auth = createClient(settings.url, settings.secretKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: {
@@ -38,17 +52,27 @@ try {
     },
   });
   db = new PrismaClient({ adapter: new PrismaPg(databaseOptions(process.env.DATABASE_URL)) });
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (command === 'bootstrap-owner') {
-    if (!uuid.test(options.identity ?? '') || options.confirm !== 'BOOTSTRAP_LOCAL_OWNER')
-      throw new Error();
+    stage = 'Consulta da identidade no Supabase Auth local';
     const { data, error } = await auth.auth.admin.getUserById(options.identity);
-    const user = data.user;
-    if (error || !user?.email_confirmed_at || !user.email || user.is_anonymous) throw new Error();
+    if (error)
+      throw new AdminCommandError(
+        error.status === 404
+          ? 'Identidade solicitada não encontrada no Auth local.'
+          : error.status === 401 || error.status === 403
+            ? 'Auth local recusou a chave administrativa; execute auth:configure-local.'
+            : 'Consulta da identidade falhou; confira disponibilidade do Supabase Auth local.',
+      );
+    const user = data?.user;
+    assertBootstrapIdentity(user, options.identity);
+    stage = 'Transação de provisionamento no PostgreSQL local';
     await db.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(723109)`;
-        if ((await tx.adminProfile.count()) !== 0) throw new Error();
+        await acquireAdminLock(tx);
+        if ((await tx.adminProfile.count()) !== 0)
+          throw new AdminCommandError(
+            'Bootstrap recusado: já existe perfil administrativo. Nenhum privilégio alterado.',
+          );
         const profile = await tx.adminProfile.create({
           data: { identityId: user.id, email: user.email.toLowerCase(), role: 'OWNER' },
         });
@@ -60,15 +84,10 @@ try {
     );
     console.log('Primeiro OWNER vinculado. O acesso ao painel ainda exige login e MFA.');
   } else if (command === 'recover-mfa') {
-    if (
-      !uuid.test(options.request ?? '') ||
-      !/^[A-Z0-9-]{6,64}$/.test(options.case ?? '') ||
-      options.confirm !== 'RESET_MFA_AFTER_IDENTITY_VERIFICATION'
-    )
-      throw new Error();
+    stage = 'Recuperação MFA local (exige aprovação vigente)';
     const target = await db.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(723109)`;
+        await acquireAdminLock(tx);
         const request = await tx.mfaRecoveryRequest.findUnique({ where: { id: options.request } });
         if (!request) throw new Error();
         const profile = await tx.adminProfile.findUnique({
@@ -151,9 +170,10 @@ try {
       'Recuperação iniciada. Perfil desativado e sessões VYMPA revogadas. O titular deve confirmar o link, recadastrar MFA e alterar a senha para reativar o perfil. Registre o resultado no incidente informado.',
     );
   } else throw new Error();
-} catch {
+} catch (error) {
+  console.error('Operação administrativa não concluída. ' + safeAdminDiagnostic(error, stage));
   console.error(
-    'Operação administrativa não concluída. Confira argumentos, confirmação, aprovação vigente, identidade e configuração local. Nenhum segredo foi registrado. Se a recuperação já iniciou, o perfil permanece desativado até concluir ou retomar o procedimento.',
+    'Nenhum segredo foi registrado. Se a recuperação já iniciou, o perfil permanece desativado até concluir ou retomar o procedimento.',
   );
   process.exitCode = 1;
 } finally {

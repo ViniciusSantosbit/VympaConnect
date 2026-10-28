@@ -180,6 +180,33 @@ describe('Integração HTTP de autenticação (banco e transporte Auth simulados
       .expect(401);
     expect(sessions.size).toBe(0);
   });
+  it('classifica provedor de e-mail desabilitado como indisponibilidade sem expor detalhes', async () => {
+    provider.client().auth.signInWithPassword.mockResolvedValueOnce({
+      data: { session: null },
+      error: { status: 422, code: 'email_provider_disabled', message: 'sensitive-provider-detail' },
+    });
+    const response = await agent
+      .post('/api/v1/auth/login')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ email: identity.email, password: 'valid-test-password' })
+      .expect(503);
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /email_provider_disabled|sensitive-provider-detail/,
+    );
+    expect(sessions.size).toBe(0);
+    expect(provider.verify).not.toHaveBeenCalled();
+  });
+  it('permite primeiro login sem fator MFA e exige cadastro antes do painel', async () => {
+    identity.aal = 'aal1';
+    provider
+      .client()
+      .auth.mfa.listFactors.mockResolvedValue({ data: { totp: [], all: [] }, error: null });
+    await login();
+    const response = await agent.get('/api/v1/auth/session').expect(200);
+    expect(response.body.state).toBe('mfa_enroll');
+    await agent.get('/api/v1/auth/me').expect(403);
+  });
   it('rejeita login sem perfil administrativo ou convite', async () => {
     profile = null;
     await agent

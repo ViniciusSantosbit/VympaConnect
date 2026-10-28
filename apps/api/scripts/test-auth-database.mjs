@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../dist/generated/prisma/client.js';
 import { loadDatabaseEnvironment, databaseOptions } from '../src/config/database-environment.ts';
+import { acquireAdminLock } from './auth-admin-support.mjs';
 let db;
 const rollback = new Error('ROLLBACK_TEST_ONLY');
 try {
@@ -13,6 +14,7 @@ try {
   db = new PrismaClient({ adapter: new PrismaPg(databaseOptions(process.env.DATABASE_URL)) });
   try {
     await db.$transaction(async (tx) => {
+      await acquireAdminLock(tx);
       const identityId = randomUUID();
       const owner = await tx.adminProfile.create({
         data: { identityId, email: 'test-' + identityId + '@example.invalid', role: 'OWNER' },

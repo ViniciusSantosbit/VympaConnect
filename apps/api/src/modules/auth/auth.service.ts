@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ServiceUnavailableException,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Session } from '@supabase/supabase-js';
@@ -25,6 +26,7 @@ export function readCookie(request: Request, name: string): string {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly db: DatabaseService,
     private readonly identity: SupabaseIdentityService,
@@ -74,8 +76,14 @@ export class AuthService {
       if (
         (!profile.active && !(allowRecovery && profile.recoveryRequired)) ||
         !['OWNER', 'ADMIN'].includes(profile.role)
-      )
+      ) {
+        this.logger.warn({
+          event: 'AUTH_REJECTED',
+          stage: 'profile',
+          reason: 'PROFILE_INACTIVE_OR_ROLE',
+        });
         throw new ForbiddenException('Acesso administrativo não autorizado.');
+      }
       return profile;
     }
     const invitation = await this.db.adminInvitation.findFirst({
@@ -88,7 +96,14 @@ export class AuthService {
         issuedBy: { active: true, role: 'OWNER' },
       },
     });
-    if (!invitation) throw new ForbiddenException('Acesso administrativo não autorizado.');
+    if (!invitation) {
+      this.logger.warn({
+        event: 'AUTH_REJECTED',
+        stage: 'profile',
+        reason: 'PROFILE_OR_INVITATION_MISSING',
+      });
+      throw new ForbiddenException('Acesso administrativo não autorizado.');
+    }
     return null;
   }
 
@@ -136,14 +151,46 @@ export class AuthService {
       password,
     });
     if (error || !data.session) {
+      const configurationError = [
+        'email_provider_disabled',
+        'provider_disabled',
+        'invalid_api_key',
+        'bad_jwt',
+      ].includes(error?.code ?? '');
+      const unavailable =
+        (error?.status && error.status >= 500) || error?.name === 'AuthRetryableFetchError';
+      this.logger.warn({
+        event: 'AUTH_REJECTED',
+        stage: 'password_provider',
+        reason: configurationError
+          ? 'AUTH_CONFIGURATION'
+          : unavailable
+            ? 'AUTH_UNAVAILABLE'
+            : error?.code === 'email_not_confirmed'
+              ? 'EMAIL_UNCONFIRMED'
+              : error?.code === 'user_banned'
+                ? 'IDENTITY_BANNED'
+                : 'CREDENTIALS_REJECTED',
+      });
       await this.db.adminAuditEvent.create({ data: { action: 'LOGIN_FAILED' } });
-      if ((error?.status && error.status >= 500) || error?.name === 'AuthRetryableFetchError')
+      if (configurationError || unavailable)
         throw new ServiceUnavailableException('Serviço de autenticação indisponível.');
       throw new UnauthorizedException('Credenciais inválidas ou acesso não autorizado.');
     }
+    this.logger.log({ event: 'AUTH_PASSWORD_ACCEPTED', stage: 'password_provider' });
     try {
       return await this.issue(data.session, response, request);
     } catch (error) {
+      this.logger.warn({
+        event: 'AUTH_REJECTED',
+        stage: 'session_issue',
+        reason:
+          error instanceof ForbiddenException
+            ? 'PROFILE_REJECTED'
+            : error instanceof UnauthorizedException
+              ? 'IDENTITY_OR_JWT_REJECTED'
+              : 'SESSION_ISSUE_FAILED',
+      });
       await client.auth.signOut({ scope: 'local' });
       if (error instanceof ForbiddenException)
         throw new UnauthorizedException('Credenciais inválidas ou acesso não autorizado.');

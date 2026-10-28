@@ -19,12 +19,21 @@ try {
   const previous = parse(text);
   assertDatabaseUrl(previous.DATABASE_URL ?? '', 'local');
   const local = JSON.parse(
-    execFileSync('supabase', ['status', '-o', 'json'], {
-      cwd: workspace,
-      encoding: 'utf8',
-      timeout: 15000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }),
+    execFileSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../../../node_modules/supabase/dist/supabase.js', import.meta.url)),
+        'status',
+        '-o',
+        'json',
+      ],
+      {
+        cwd: workspace,
+        encoding: 'utf8',
+        timeout: 15000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    ),
   );
   const values = {
     AUTH_ENVIRONMENT: 'local',
