@@ -45,7 +45,7 @@ try {
       });
       const tables =
         await tx.$queryRaw`SELECT relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'vympa_private' AND c.relkind = 'r'`;
-      assert.equal(tables.length, 5);
+      assert.equal(tables.length, 10);
       assert.ok(tables.every((table) => table.relrowsecurity));
       throw rollback;
     });

@@ -18,6 +18,11 @@ const DashboardPage = lazy(() =>
   })),
 );
 import { AdminUsersPage } from '@/features/admin-users/AdminUsersPage';
+const ProspectingPage = lazy(() =>
+  import('@/features/prospecting/ProspectingPage').then((module) => ({
+    default: module.ProspectingPage,
+  })),
+);
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/recover', element: <RecoveryPage /> },
@@ -47,8 +52,24 @@ export const router = createBrowserRouter([
               { path: '/admin/users', element: <AdminUsersPage /> },
             ],
           },
+          {
+            path: '/prospecting',
+            element: (
+              <Suspense fallback={<LoadingState />}>
+                <ProspectingPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: '/crm',
+            element: (
+              <Suspense fallback={<LoadingState />}>
+                <ProspectingPage crm />
+              </Suspense>
+            ),
+          },
           ...modules
-            .filter(([path]) => path !== 'dashboard' && path !== 'admin')
+            .filter(([path]) => !['dashboard', 'admin', 'prospecting', 'crm'].includes(path))
             .map(([path, label]) => ({ path, element: <ModulePlaceholder label={label} /> })),
           { path: '*', element: <ModulePlaceholder label="Página não encontrada" /> },
         ],

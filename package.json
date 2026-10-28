@@ -40,7 +40,8 @@
     "auth:configure-local": "npm run auth:configure-local -w @vympa/api --",
     "auth:bootstrap-owner": "npm run auth:bootstrap-owner -w @vympa/api --",
     "auth:recover-mfa": "npm run auth:recover-mfa -w @vympa/api --",
-    "test:integration:database": "npm run test:integration:database -w @vympa/api"
+    "test:integration:database": "npm run test:integration:database -w @vympa/api",
+    "test:integration:prospecting": "npm run test:integration:prospecting -w @vympa/api"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

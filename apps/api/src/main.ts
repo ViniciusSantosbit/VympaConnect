@@ -17,6 +17,7 @@ async function bootstrap() {
         .setTitle('VYMPA Connect API')
         .setDescription('Autenticação administrativa Supabase, MFA e autorização por perfil ativo.')
         .setVersion('1.0')
+        .addCookieAuth('vympa_session')
         .build(),
     );
     SwaggerModule.setup('api/docs', app, document);

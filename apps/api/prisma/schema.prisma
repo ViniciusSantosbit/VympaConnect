@@ -40,9 +40,113 @@ model AdminProfile {
   auditEvents       AdminAuditEvent[]
   recoveryRequests  MfaRecoveryRequest[] @relation("RecoveryRequester")
   recoveryApprovals MfaRecoveryRequest[] @relation("RecoveryApprover")
+  assignedLeads Lead[] @relation("LeadAssignee")
+  createdLeads Lead[] @relation("LeadCreator")
+  leadEvents LeadEvent[]
+  placesUsage PlacesUsage[]
 
   @@index([active, role])
   @@map("admin_profiles")
+  @@schema("vympa_private")
+}
+
+enum LeadStatus {
+  NOT_CONTACTED
+  CONTACTED
+  NEGOTIATING
+  WON
+  LOST
+  @@schema("vympa_private")
+}
+
+enum LeadSegment {
+  ADVOCACIA
+  CONTABILIDADE
+  IMOBILIARIO
+  @@schema("vympa_private")
+}
+
+model Lead {
+  id String @id @default(uuid()) @db.Uuid
+  // Informações próprias, inseridas manualmente; nenhum conteúdo Places é copiado.
+  companyName String? @map("company_name") @db.VarChar(180)
+  segment LeadSegment
+  region String? @db.VarChar(20)
+  state String? @db.VarChar(2)
+  city String? @db.VarChar(100)
+  email String? @db.VarChar(254)
+  contactName String? @map("contact_name") @db.VarChar(150)
+  contactChannel String? @map("contact_channel") @db.VarChar(180)
+  status LeadStatus @default(NOT_CONTACTED)
+  lossReason String? @map("loss_reason") @db.VarChar(1000)
+  lastContactAt DateTime? @map("last_contact_at") @db.Timestamptz(3)
+  nextAction String? @map("next_action") @db.VarChar(500)
+  assigneeId String? @map("assignee_id") @db.Uuid
+  assignee AdminProfile? @relation("LeadAssignee", fields:[assigneeId], references:[id], onDelete:Restrict)
+  createdById String @map("created_by_id") @db.Uuid
+  createdBy AdminProfile @relation("LeadCreator", fields:[createdById], references:[id], onDelete:Restrict)
+  externalReference PlaceReference?
+  events LeadEvent[]
+  followUps LeadFollowUp[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@index([status, updatedAt])
+  @@index([assigneeId, status])
+  @@index([segment, state, city])
+  @@map("leads")
+  @@schema("vympa_private")
+}
+
+model PlaceReference {
+  placeId String @id @map("place_id") @db.VarChar(255)
+  leadId String @unique @map("lead_id") @db.Uuid
+  lead Lead @relation(fields:[leadId], references:[id], onDelete:Restrict)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@map("place_references")
+  @@schema("vympa_private")
+}
+
+model LeadEvent {
+  id String @id @default(uuid()) @db.Uuid
+  leadId String @map("lead_id") @db.Uuid
+  lead Lead @relation(fields:[leadId], references:[id], onDelete:Restrict)
+  actorId String @map("actor_id") @db.Uuid
+  actor AdminProfile @relation(fields:[actorId], references:[id], onDelete:Restrict)
+  kind String @db.VarChar(30)
+  body String? @db.VarChar(4000)
+  channel String? @db.VarChar(40)
+  previousStatus LeadStatus? @map("previous_status")
+  newStatus LeadStatus? @map("new_status")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([leadId, createdAt])
+  @@index([createdAt])
+  @@map("lead_events")
+  @@schema("vympa_private")
+}
+
+model LeadFollowUp {
+  id String @id @default(uuid()) @db.Uuid
+  leadId String @map("lead_id") @db.Uuid
+  lead Lead @relation(fields:[leadId], references:[id], onDelete:Restrict)
+  action String @db.VarChar(500)
+  dueAt DateTime @map("due_at") @db.Timestamptz(3)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([leadId, dueAt])
+  @@index([completedAt, dueAt])
+  @@map("lead_follow_ups")
+  @@schema("vympa_private")
+}
+
+model PlacesUsage {
+  profileId String @map("profile_id") @db.Uuid
+  profile AdminProfile @relation(fields:[profileId], references:[id], onDelete:Restrict)
+  hour DateTime @db.Timestamptz(3)
+  calls Int @default(0)
+  details Int @default(0)
+  @@id([profileId, hour])
+  @@index([hour])
+  @@map("places_usage")
   @@schema("vympa_private")
 }
 

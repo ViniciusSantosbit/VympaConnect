@@ -131,6 +131,28 @@ export function DashboardPage() {
               />
             ))}
           </div>
+          {data.prospecting && (
+            <div className="kpi-grid mt-4">
+              <KpiCard
+                label="Leads em contato"
+                value={data.prospecting.contacted}
+                icon={Handshake}
+                href="/crm"
+              />
+              <KpiCard
+                label="Negociações ganhas"
+                value={data.prospecting.won}
+                icon={FileCheck2}
+                href="/crm"
+              />
+              <KpiCard
+                label="Negociações perdidas"
+                value={data.prospecting.lost}
+                icon={Flag}
+                href="/crm"
+              />
+            </div>
+          )}
           <p className="data-note">
             <span className="cyan-dot" />
             Indicadores indisponíveis aparecem como “—”. Nenhum resultado comercial foi estimado.
@@ -205,8 +227,16 @@ export function DashboardPage() {
               ) : (
                 <EmptyState
                   icon={TrendingUp}
-                  title="Nenhuma negociação registrada"
-                  description="A evolução dos leads e das negociações será exibida com os dados dos módulos comerciais."
+                  title={
+                    data.prospecting?.total
+                      ? 'Evolução por período em preparação'
+                      : 'Nenhuma negociação registrada'
+                  }
+                  description={
+                    data.prospecting?.total
+                      ? 'Os indicadores atuais estão disponíveis. A série histórica será integrada a este gráfico.'
+                      : 'A evolução dos leads e das negociações será exibida com os dados dos módulos comerciais.'
+                  }
                 />
               )}
             </ChartContainer>
@@ -236,7 +266,10 @@ export function DashboardPage() {
                 />
               )}
             </ChartContainer>
-            <ChartContainer title="Atividades recentes" subtitle="Eventos reais da sua conta">
+            <ChartContainer
+              title="Atividades recentes"
+              subtitle="Acessos da conta e atividades comerciais reais"
+            >
               {data.activities.length ? (
                 <ol className="activity-list">
                   {data.activities.map((event) => (

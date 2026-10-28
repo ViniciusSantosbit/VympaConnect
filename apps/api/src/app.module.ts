@@ -13,6 +13,7 @@ import { JwtSessionGuard, RolesGuard } from './modules/auth/auth.guards.js';
 import { AdminUsersModule } from './modules/admin-users/admin-users.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { ProspectingModule } from './modules/prospecting/prospecting.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -50,6 +51,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
     DatabaseModule,
     HealthModule,
     DashboardModule,
+    ProspectingModule,
     AuthModule,
     AdminUsersModule,
   ],

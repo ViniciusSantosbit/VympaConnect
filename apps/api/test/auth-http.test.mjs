@@ -76,6 +76,9 @@ beforeEach(async () => {
     tokens: (value) => ({ access_token: value.access_token, refresh_token: value.refresh_token }),
   };
   db = {
+    lead: { groupBy: jest.fn(async () => []) },
+    leadEvent: { findMany: jest.fn(async () => []) },
+    placesUsage: { findMany: jest.fn(async () => []) },
     $queryRaw: jest.fn(async () => []),
     adminProfile: {
       findUnique: jest.fn(async ({ where }) =>
@@ -164,8 +167,9 @@ describe('Integração HTTP de autenticação (banco e transporte Auth simulados
     identity.aal = 'aal2';
     const response = await agent.get('/api/v1/dashboard/summary').expect(200);
     expect(response.headers['cache-control']).toBe('no-store');
-    expect(Object.values(response.body.metrics)).toEqual(Array(8).fill(null));
-    expect(response.body.businessStatus).toBe('modules_pending');
+    expect(response.body.metrics.leads).toBe(0);
+    expect(response.body.metrics.closedContracts).toBeNull();
+    expect(response.body.businessStatus).toBe('prospecting_ready');
     profile.active = false;
     await agent.get('/api/v1/dashboard/summary').expect(403);
   });
@@ -372,5 +376,48 @@ describe('Integração HTTP de autenticação (banco e transporte Auth simulados
       .set('Origin', 'http://127.0.0.1:5173')
       .set('X-CSRF-Token', csrf)
       .expect(403);
+  });
+});
+
+describe('Prospecting security', () => {
+  it('exige sessao e MFA nos endpoints novos', async () => {
+    for (const path of ['/usage', '/assignees', '/leads', '/leads/' + profileId])
+      await agent.get('/api/v1/prospecting' + path).expect(401);
+    for (const path of [
+      '/places/search',
+      '/places/place_test_1/details',
+      '/leads',
+      '/leads/' + profileId + '/notes',
+      '/leads/' + profileId + '/interactions',
+      '/leads/' + profileId + '/follow-ups',
+    ])
+      await agent
+        .post('/api/v1/prospecting' + path)
+        .set('Origin', 'http://127.0.0.1:5173')
+        .set('X-CSRF-Token', csrf)
+        .send({})
+        .expect(401);
+    identity.aal = 'aal1';
+    await login();
+    await agent.get('/api/v1/prospecting/usage').expect(403);
+  });
+  it('permite ADMIN e bloqueia busca sem chave e autoridade injetada', async () => {
+    profile.role = 'ADMIN';
+    await login();
+    process.env.GOOGLE_PLACES_ENABLED = 'false';
+    await agent.get('/api/v1/prospecting/usage').expect(200);
+    await agent
+      .post('/api/v1/prospecting/places/search')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ segment: 'ADVOCACIA' })
+      .expect(503);
+    await agent
+      .post('/api/v1/prospecting/leads')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ companyName: 'Fixture isolada', segment: 'ADVOCACIA', userId: ownerId })
+      .expect(400);
+    await agent.get('/api/v1/prospecting/leads?status=INVALID').expect(400);
   });
 });

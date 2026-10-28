@@ -1,0 +1,609 @@
+.prospecting-page {
+  max-width: 1900px;
+}
+.prospecting-page .dashboard-heading > button {
+  background: #68dda8;
+  color: #071a12;
+  border-color: #68dda8;
+}
+.prospecting-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.view-switch {
+  display: flex;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid #263a49;
+  border-radius: 10px;
+  background: #0e1824;
+}
+.view-switch button {
+  font-size: 11px;
+  gap: 7px;
+}
+.usage-label {
+  color: #91a9bb;
+  font-size: 10px;
+}
+.filter-toggle {
+  display: none;
+}
+.integration-pending {
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #315453;
+  background: #102529;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #98d1c8;
+}
+.integration-pending svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.integration-pending strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.integration-pending p {
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 6px 0 0;
+  color: #a0b8c0;
+}
+.prospecting-workspace {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.prospect-filters {
+  border: 1px solid #243747;
+  border-radius: 12px;
+  background: #0e1824;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+.prospect-filters h2 {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+.prospect-filters label,
+.lead-fields label {
+  display: grid;
+  gap: 8px;
+  font-size: 11px;
+  color: #b3c3d1;
+}
+.prospect-filters input,
+.prospect-filters select,
+.lead-fields input,
+.lead-fields select,
+.lead-fields textarea,
+.kanban-card select,
+.place-panel select {
+  min-width: 0;
+  width: 100%;
+  background: #0a131e;
+  border: 1px solid #2b4052;
+  border-radius: 7px;
+  padding: 9px;
+  color: #d6e2eb;
+  font-size: 12px;
+}
+.prospect-filters input:focus-visible,
+.prospect-filters select:focus-visible,
+.lead-fields textarea:focus-visible,
+.kanban-card select:focus-visible {
+  outline: 2px solid #68dda8;
+  outline-offset: 2px;
+}
+.prospect-note {
+  color: #93a9bb;
+  font-size: 10px;
+  line-height: 1.9;
+  margin: 14px 0;
+}
+.prospect-note a {
+  color: #82d8b4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prospect-filters .prospect-note {
+  margin: 0;
+}
+.prospect-filters button {
+  font-size: 11px;
+}
+.prospect-content {
+  min-width: 0;
+}
+.map-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  min-height: 580px;
+  border: 1px solid #263b4b;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0d1824;
+}
+.map-canvas {
+  min-height: 580px;
+  background: radial-gradient(ellipse at 50% 35%, #173d3a, #0b1724 75%);
+}
+.map-placeholder {
+  min-height: 580px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 30px;
+  color: #7fd8b0;
+}
+.map-placeholder h2 {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 20px 0 10px;
+}
+.map-placeholder p {
+  max-width: 330px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #a1b8c7;
+  margin: 0 0 20px;
+}
+.map-placeholder small {
+  max-width: 280px;
+  line-height: 1.8;
+  color: #91a6b8;
+  font-size: 10px;
+  margin-top: 14px;
+}
+.places-results {
+  padding: 20px;
+  border-left: 1px solid #263b4b;
+  max-height: 700px;
+  overflow: auto;
+}
+.places-results h2 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.places-results p {
+  font-size: 12px;
+  color: #93a9bb;
+  line-height: 1.8;
+}
+.places-results .empty-state {
+  padding: 25px 5px;
+}
+.place-result {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  flex-direction: column;
+  gap: 10px;
+  background: #111f2d;
+  border: 1px solid #283e50;
+  border-radius: 9px;
+  padding: 15px;
+  margin: 12px 0;
+  color: #d6e4ee;
+}
+.place-result:hover,
+.place-result.active {
+  border-color: #68dda8;
+  background: #15312f;
+}
+.place-result strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.place-result > span {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #9cb1c1;
+}
+.status-NOT_CONTACTED {
+  --status-color: #a9b5c3;
+}
+.status-CONTACTED {
+  --status-color: #77b8ff;
+}
+.status-NEGOTIATING {
+  --status-color: #f2d56c;
+}
+.status-WON {
+  --status-color: #68dda8;
+}
+.status-LOST {
+  --status-color: #ff969e;
+}
+.status-badge {
+  color: var(--status-color);
+  font-size: 10px;
+  border: 1px solid color-mix(in srgb, var(--status-color) 40%, transparent);
+  padding: 4px 7px;
+  border-radius: 5px;
+  display: inline-block;
+  width: fit-content;
+  white-space: nowrap;
+}
+.place-marker {
+  color: var(--status-color);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #101c29;
+  box-shadow: 0 2px 6px #0009;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: 28px;
+}
+.place-marker.selected {
+  outline: 4px solid #68dda8;
+  transform: scale(1.25);
+}
+.place-panel {
+  margin-top: 18px;
+  padding: 24px;
+  border: 1px solid #2d4c48;
+  background: #102322;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 22px;
+}
+.place-panel h2 {
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+.place-panel p,
+.place-panel > div > span {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #a2b9c3;
+  overflow-wrap: anywhere;
+}
+.place-panel button {
+  margin-top: 12px;
+  white-space: normal;
+  height: auto;
+  min-height: 36px;
+  padding: 10px;
+}
+.google-credit {
+  grid-column: 1/-1;
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #334455;
+  font-size: 10px;
+  margin-top: 12px;
+}
+.google-credit img {
+  object-fit: contain;
+}
+.google-credit a {
+  text-decoration: underline;
+}
+.crm-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 0 0 20px;
+}
+.crm-heading h2 {
+  font-size: 17px;
+  font-weight: 500;
+}
+.crm-heading > span {
+  font-size: 10px;
+  color: #96adbf;
+}
+.leads-list {
+  border: 1px solid #263b4c;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lead-row {
+  display: grid;
+  grid-template-columns: 1.5fr 130px 1fr;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  background: #0e1b29;
+  color: #c6d9e5;
+  border-bottom: 1px solid #253949;
+}
+.lead-row:hover {
+  background: #142b2e;
+}
+.lead-row strong {
+  font-size: 12px;
+  display: block;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.lead-row small {
+  font-size: 10px;
+  color: #91acbe;
+  display: block;
+  margin-top: 7px;
+}
+.lead-row > span:last-child {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(145px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding: 3px 3px 20px;
+}
+.kanban-column {
+  background: #0d1926;
+  border: 1px solid #273c4c;
+  border-radius: 10px;
+  min-height: 340px;
+  padding: 12px;
+}
+.kanban-column > h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--status-color);
+  margin: 5px 0 18px;
+}
+.kanban-column > h3 > i {
+  background: var(--status-color);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.kanban-column > h3 > span {
+  margin-left: auto;
+  font-size: 10px;
+}
+.kanban-card {
+  border: 1px solid #2c4354;
+  background: #142535;
+  border-radius: 9px;
+  padding: 13px;
+  margin-top: 12px;
+}
+.kanban-card > button {
+  text-align: left;
+  width: 100%;
+}
+.kanban-card strong {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  color: #d6e4ef;
+  display: block;
+}
+.kanban-card small,
+.kanban-card p {
+  font-size: 9px;
+  color: #a1b6c7;
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+  display: block;
+}
+.kanban-card select {
+  font-size: 10px;
+  padding: 7px;
+}
+.column-empty {
+  color: #8ca4b6;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.crm-pagination {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.crm-pagination button {
+  font-size: 11px;
+}
+.lead-dialog.lead-dialog {
+  max-width: 820px;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.lead-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+.lead-fields form {
+  display: grid;
+  gap: 12px;
+  align-self: start;
+}
+.lead-fields textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+.lead-fields h3,
+.lead-dialog h3 {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 10px 0;
+}
+.lead-dialog p {
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.place-reference {
+  color: #8aa5b7;
+  font-size: 10px !important;
+}
+.follow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #273b4a;
+  padding: 12px 0;
+}
+.follow-row span {
+  font-size: 12px;
+}
+.follow-row small {
+  display: block;
+  color: #96b0c2;
+  font-size: 10px;
+  margin-top: 6px;
+}
+.lead-history {
+  list-style: none;
+  padding: 0;
+}
+.lead-history li {
+  border-left: 2px solid #31584b;
+  padding: 0 0 14px 15px;
+  margin: 15px 0;
+  color: #adc4d2;
+}
+.lead-history strong {
+  font-size: 11px;
+  color: #8cdbb7;
+}
+.lead-history small {
+  font-size: 10px;
+  color: #90a9bb;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1350px) {
+  .map-workspace {
+    grid-template-columns: 1fr;
+  }
+  .places-results {
+    border-left: 0;
+    border-top: 1px solid #263b4b;
+    max-height: 340px;
+  }
+  .map-canvas,
+  .map-placeholder {
+    min-height: 400px;
+    height: 400px;
+  }
+  .map-workspace {
+    min-height: 400px;
+  }
+  .prospecting-workspace {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .lead-row {
+    grid-template-columns: 1fr 120px;
+  }
+  .lead-row > span:last-child {
+    grid-column: 1/-1;
+  }
+  .place-panel {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .prospecting-workspace {
+    grid-template-columns: 1fr;
+  }
+  .prospect-filters {
+    display: none;
+  }
+  .prospect-filters.filters-open {
+    display: grid;
+  }
+  .filter-toggle {
+    display: inline-flex;
+  }
+  .usage-label {
+    width: 100%;
+    font-size: 9px;
+  }
+  .view-switch {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .view-switch button {
+    padding: 8px;
+    font-size: 10px;
+  }
+  .prospecting-page .dashboard-heading {
+    flex-wrap: wrap;
+  }
+  .prospecting-page .dashboard-heading > button {
+    margin-top: 0;
+  }
+  .map-canvas,
+  .map-placeholder {
+    height: 360px;
+    min-height: 360px;
+  }
+  .places-results {
+    max-height: 400px;
+  }
+  .crm-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .lead-fields {
+    grid-template-columns: 1fr;
+  }
+  .lead-row {
+    grid-template-columns: 1fr;
+  }
+  .lead-row > span:last-child {
+    grid-column: auto;
+  }
+  .place-panel {
+    padding: 18px;
+  }
+  .integration-pending {
+    padding: 16px;
+  }
+  .kanban-board {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .kanban-column {
+    min-height: 130px;
+  }
+  .kanban-card {
+    max-width: 100%;
+  }
+  .lead-dialog.lead-dialog {
+    max-height: 88dvh;
+  }
+  .follow-row {
+    align-items: flex-start;
+  }
+}
