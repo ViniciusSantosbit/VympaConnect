@@ -5,6 +5,11 @@ import { PrismaClient } from '../dist/generated/prisma/client.js';
 import { loadDatabaseEnvironment, databaseOptions } from '../src/config/database-environment.ts';
 import { ProspectingService } from '../dist/modules/prospecting/prospecting.service.js';
 import { DashboardService } from '../dist/modules/dashboard/dashboard.module.js';
+import { ClientsService } from '../dist/modules/clients/clients.service.js';
+import { ContractsService } from '../dist/modules/contracts/contracts.service.js';
+import { GoalsService } from '../dist/modules/goals/goals.service.js';
+import { GoalMetricsService } from '../dist/modules/goals/goal-metrics.service.js';
+import { GoalProgressService } from '../dist/modules/goals/goal-progress.service.js';
 process.env.VYMPA_DATABASE_TARGET = 'local';
 loadDatabaseEnvironment();
 const url = new URL(process.env.DATABASE_URL);
@@ -95,9 +100,14 @@ try {
           page: 1,
         });
         assert.equal(listed.total, 1);
-        const summary = await new DashboardService(scoped).summary(actor.id, actor.identityId);
+        const summary = await new DashboardService(
+          scoped,
+          undefined,
+          new ContractsService(scoped, new ClientsService(scoped)),
+          new GoalsService(scoped, new GoalMetricsService(scoped), new GoalProgressService()),
+        ).summary(actor.id, actor.identityId);
         assert.ok(summary.prospecting.lost >= 1);
-        assert.equal(summary.metrics.closedContracts, null);
+        assert.ok(Number.isInteger(summary.metrics.closedContracts));
         const rls =
           await tx.$queryRaw`SELECT relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='vympa_private' AND c.relname IN ('leads','place_references','lead_events','lead_follow_ups','places_usage')`;
         assert.equal(rls.length, 5);

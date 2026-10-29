@@ -862,6 +862,11 @@ export function SimulatorPage() {
       </FinancePanel>
       {selectedVersion && (
         <FinancePanel title={'Proposta salva · ' + selectedVersion.companyName}>
+          {owner && view?.status === 'ACCEPTED' && (
+            <a href={'/contracts?proposalId=' + view.id}>
+              Preparar rascunho contratual a partir desta proposta
+            </a>
+          )}
           <p>
             Status {statusNames[selectedVersion.status]} · versão {selectedVersion.version}.
             Snapshot comercial preservado.

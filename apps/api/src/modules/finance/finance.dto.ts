@@ -223,6 +223,14 @@ export class PeriodDto {
   page = 1;
 }
 export class EntryDto {
+  @ApiProperty({ type: String, required: false }) @IsOptional() @IsUUID() clientId?: string;
+  @ApiProperty({ type: String, required: false }) @IsOptional() @IsUUID() contractId?: string;
+  @ApiProperty({ type: String, required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(100)
+  billingReference?: string;
   @ApiProperty({ type: String }) @IsUUID() requestKey!: string;
   @ApiProperty({ type: String }) @IsString() @MinLength(2) @MaxLength(250) description!: string;
   @ApiProperty({ type: String }) @IsIn(['INCOME', 'EXPENSE']) type!: 'INCOME' | 'EXPENSE';

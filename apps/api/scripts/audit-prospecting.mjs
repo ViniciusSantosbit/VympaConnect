@@ -275,6 +275,34 @@ try {
     });
   }
   const reserve = createServer();
+  if (process.argv.includes('--goals')) {
+    const { runGoalsAudit } = await import('./audit-goals-scenarios.mjs');
+    await runGoalsAudit({
+      db,
+      call,
+      actor,
+      page,
+      origin: settings.origin,
+      passed,
+      renewCsrf: async () => {
+        csrf = (await call('GET', '/auth/csrf')).csrfToken;
+      },
+    });
+  }
+  if (process.argv.includes('--clients-contracts')) {
+    const { runClientsContractsAudit } = await import('./audit-clients-contracts-scenarios.mjs');
+    await runClientsContractsAudit({
+      db,
+      call,
+      actor,
+      page,
+      origin: settings.origin,
+      passed,
+      renewCsrf: async () => {
+        csrf = (await call('GET', '/auth/csrf')).csrfToken;
+      },
+    });
+  }
   await new Promise((resolve) => reserve.listen(0, '127.0.0.1', resolve));
   const unavailablePort = reserve.address().port;
   await new Promise((resolve) => reserve.close(resolve));

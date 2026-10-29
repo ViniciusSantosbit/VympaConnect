@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leadStatuses, statusLabels } from '@vympa/shared';
 import type { LeadRecord, LeadStatus } from '@vympa/shared';
@@ -70,6 +71,11 @@ export function LeadDetails({
         ) : (
           lead && (
             <>
+              <p>
+                <Link to={'/clients?leadId=' + id}>
+                  Converter ou vincular este lead a um cliente
+                </Link>
+              </p>
               {lead.externalReference && (
                 <p className="place-reference">
                   Referência{' '}

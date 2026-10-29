@@ -23,6 +23,10 @@
     "auth:recover-mfa": "node scripts/auth-admin.mjs recover-mfa",
     "test:integration:database": "node scripts/test-auth-database.mjs",
     "test:integration:prospecting": "node scripts/test-prospecting-database.mjs",
+    "test:integration:clients-contracts": "node scripts/test-clients-contracts-database.mjs",
+    "test:integration:goals": "node scripts/test-goals-database.mjs",
+    "test:audit:goals": "node scripts/audit-prospecting.mjs --clients-contracts --goals",
+    "test:audit:clients-contracts": "node scripts/audit-prospecting.mjs --finance --clients-contracts",
     "test:audit:prospecting": "node scripts/audit-prospecting.mjs",
     "test:audit:finance": "node scripts/audit-prospecting.mjs --finance"
   },

@@ -10,6 +10,19 @@ export type DashboardMetric =
 
 export interface DashboardSummary {
   generatedAt: string;
+  goalIndicators?: import('./goals.js').GoalsSummary;
+  relationships?: {
+    totalClients: number;
+    activeClients: number;
+    onboarding: number;
+    active: number;
+    expired: number;
+    pendingSignature: number;
+    expiring: number;
+    renewals: number;
+    monthlyContractedCents: string | null;
+    unpriced: number | null;
+  };
   businessStatus: 'modules_pending' | 'prospecting_ready';
   prospecting?: {
     total: number;

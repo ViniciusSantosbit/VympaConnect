@@ -71,6 +71,15 @@ export class ManagementService {
     if (dto.status !== 'SETTLED' && dto.settledOn)
       throw new BadRequestException('Somente lançamentos realizados podem ter data de caixa.');
     const category = await this.activeCategory(tx, dto.categoryId);
+    if (dto.contractId && (!dto.clientId || !dto.billingReference))
+      throw new BadRequestException('Cobrança contratual exige cliente e referência única.');
+    if (dto.clientId && !(await tx.client.findUnique({ where: { id: dto.clientId } })))
+      throw new BadRequestException('Cliente não encontrado.');
+    if (
+      dto.contractId &&
+      !(await tx.contract.findFirst({ where: { id: dto.contractId, clientId: dto.clientId } }))
+    )
+      throw new BadRequestException('Contrato não pertence ao cliente.');
     return {
       description: dto.description.trim(),
       type: dto.type,
@@ -85,6 +94,9 @@ export class ManagementService {
       serviceReference: dto.serviceReference || null,
       paymentMethod: dto.paymentMethod || null,
       notes: dto.notes || null,
+      ...(dto.clientId !== undefined ? { clientId: dto.clientId } : {}),
+      ...(dto.contractId !== undefined ? { contractId: dto.contractId } : {}),
+      ...(dto.billingReference !== undefined ? { billingReference: dto.billingReference } : {}),
     };
   }
   async saveEntry(dto: EntryDto, actor: string, id?: string) {
@@ -100,6 +112,12 @@ export class ManagementService {
       if (id && !before) throw new NotFoundException('Lançamento não encontrado.');
       if (before) {
         expected(before, dto.version);
+        for (const field of ['clientId', 'contractId', 'billingReference'] as const) {
+          if (dto[field] !== undefined && dto[field] !== before[field])
+            throw new BadRequestException(
+              'Vínculos de cobrança devem ser preservados. Cancele o lançamento para corrigir.',
+            );
+        }
         if (before.requestKey !== dto.requestKey)
           throw new BadRequestException('A chave original do lançamento deve ser preservada.');
         if (before.status === 'CANCELLED')

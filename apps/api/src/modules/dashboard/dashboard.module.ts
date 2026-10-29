@@ -1,4 +1,8 @@
 import { FinanceModule } from '../finance/finance.module.js';
+import { ClientsModule } from '../clients/clients.module.js';
+import { ContractsService } from '../contracts/contracts.service.js';
+import { GoalsModule } from '../goals/goals.module.js';
+import { GoalsService } from '../goals/goals.service.js';
 import { ManagementService } from '../finance/management.service.js';
 import { Controller, Get, Injectable, Module, Req, Header } from '@nestjs/common';
 import type { DashboardSummary } from '@vympa/shared';
@@ -19,6 +23,8 @@ export class DashboardService {
   constructor(
     private readonly db: DatabaseService,
     private readonly finance: ManagementService,
+    private readonly contracts: ContractsService,
+    private readonly goalsService: GoalsService,
   ) {}
 
   async summary(profileId: string, identityId: string, role?: string): Promise<DashboardSummary> {
@@ -40,6 +46,13 @@ export class DashboardService {
       take: 5,
     });
     const financial = role === 'OWNER' ? await this.finance.summary() : null;
+    const goalIndicators = await this.goalsService.summary(profileId, role ?? 'ADMIN');
+    const relationships = await this.contracts.summary(profileId, role ?? 'ADMIN');
+    const expiringContracts = await this.contracts.expiring(
+      { page: 1, days: 30 },
+      profileId,
+      role ?? 'ADMIN',
+    );
     // Ausência de módulos não significa faturamento zero. Os futuros domínios
     // fornecerão suas agregações aqui quando existirem tabelas e regras reais.
     return {
@@ -52,15 +65,17 @@ export class DashboardService {
         won: counts.WON ?? 0,
         lost: counts.LOST ?? 0,
       },
+      relationships,
+      goalIndicators,
       metrics: {
         leads: total,
         negotiations: counts.NEGOTIATING ?? 0,
-        closedContracts: null,
-        activeClients: null,
+        closedContracts: relationships.active,
+        activeClients: relationships.activeClients,
         monthlyRevenue: financial ? financial.receivedCents / 100 : null,
         monthlyExpenses: financial ? financial.paidCents / 100 : null,
         balance: financial ? financial.balanceCents / 100 : null,
-        goalProgress: null,
+        goalProgress: goalIndicators.commercialProgress,
       },
       finance: financial
         ? financial.months.map((m) => ({
@@ -74,8 +89,12 @@ export class DashboardService {
         label,
         count: counts[status] ?? 0,
       })),
-      contracts: [],
-      goals: [],
+      contracts: expiringContracts.map((c) => ({
+        id: c.id,
+        name: c.number + ' · ' + c.title,
+        dueAt: c.endsOn!.toISOString(),
+      })),
+      goals: goalIndicators.items,
       activities: [
         ...events.map((event) => ({
           id: event.id,
@@ -118,7 +137,7 @@ export class DashboardController {
 }
 
 @Module({
-  imports: [FinanceModule],
+  imports: [FinanceModule, ClientsModule, GoalsModule],
   controllers: [DashboardController],
   providers: [DashboardService],
 })

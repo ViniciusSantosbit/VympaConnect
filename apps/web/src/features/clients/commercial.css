@@ -1,0 +1,112 @@
+.commercial-page {
+  max-width: 1480px;
+}
+.commercial-page .dashboard-heading > button {
+  background: #68dda8;
+  border: 1px solid #68dda8;
+  color: #07120d;
+  font-weight: 600;
+}
+.commercial-page .dashboard-heading > button:hover {
+  background: #85e6bb;
+  border-color: #85e6bb;
+  opacity: 1;
+}
+.commercial-filters,
+.commercial-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+  align-items: center;
+}
+.commercial-filters input {
+  flex: 1;
+  min-width: 180px;
+}
+.commercial-page select {
+  background: #101b28;
+  color: #e3edf6;
+  border: 1px solid #26364a;
+  border-radius: 8px;
+  padding: 10px;
+  max-width: 100%;
+}
+.commercial-page table a {
+  color: #68dda8;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.commercial-page table small {
+  display: block;
+  margin-top: 6px;
+  color: #9baabc;
+}
+.commercial-badge {
+  display: inline-block;
+  padding: 5px 9px;
+  border: 1px solid #35465d;
+  border-radius: 20px;
+  font-size: 12px;
+  background: #142034;
+  color: #b9ccdf;
+}
+.state-ACTIVE,
+.state-LIVE {
+  color: #68dda8;
+  border-color: #31684f;
+}
+.state-EXPIRED,
+.state-SUSPENDED,
+.state-TERMINATED {
+  color: #f4b4a8;
+  border-color: #724137;
+}
+.state-PENDING_SIGNATURE,
+.state-ONBOARDING {
+  color: #6bd8ed;
+  border-color: #2d5c70;
+}
+.commercial-data {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin: 22px 0;
+}
+.commercial-data dt {
+  color: #9baabc;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.commercial-data dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.commercial-contact {
+  border-bottom: 1px solid #243348;
+  padding: 20px 0;
+}
+.commercial-timeline {
+  padding-left: 20px;
+}
+.commercial-timeline li {
+  border-left: 1px solid #35534e;
+  padding: 0 0 22px 16px;
+  list-style: none;
+}
+.commercial-timeline p {
+  white-space: pre-wrap;
+}
+.commercial-tabs button {
+  min-height: 40px;
+}
+@media (max-width: 700px) {
+  .commercial-data {
+    grid-template-columns: 1fr;
+  }
+  .commercial-filters > * {
+    width: 100%;
+  }
+}

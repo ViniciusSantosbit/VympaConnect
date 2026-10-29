@@ -76,6 +76,13 @@ beforeEach(async () => {
     tokens: (value) => ({ access_token: value.access_token, refresh_token: value.refresh_token }),
   };
   db = {
+    goal: {
+      findMany: jest.fn(async () => []),
+      count: jest.fn(async () => 0),
+      findFirst: jest.fn(async () => null),
+    },
+    client: { count: jest.fn(async () => 0), findUnique: jest.fn(async () => null) },
+    contract: { count: jest.fn(async () => 0), findMany: jest.fn(async () => []) },
     financialOpeningBalance: { findUnique: jest.fn(async () => null) },
     financialTransaction: { groupBy: jest.fn(async () => []) },
     lead: { groupBy: jest.fn(async () => []) },
@@ -170,7 +177,7 @@ describe('Integração HTTP de autenticação (banco e transporte Auth simulados
     const response = await agent.get('/api/v1/dashboard/summary').expect(200);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body.metrics.leads).toBe(0);
-    expect(response.body.metrics.closedContracts).toBeNull();
+    expect(response.body.metrics.closedContracts).toBe(0);
     expect(response.body.businessStatus).toBe('prospecting_ready');
     profile.active = false;
     await agent.get('/api/v1/dashboard/summary').expect(403);
@@ -381,6 +388,141 @@ describe('Integração HTTP de autenticação (banco e transporte Auth simulados
   });
 });
 
+describe('Metas: sessão, MFA, CSRF e dados financeiros', () => {
+  const paths = [
+    '/goals',
+    '/goals/summary',
+    '/goals/definitions',
+    '/goals/analytics',
+    '/goals/team',
+    '/goals/' + profileId,
+    '/goals/' + profileId + '/progress',
+    '/goals/' + profileId + '/history',
+  ];
+  it('exige sessão e MFA em todas as leituras', async () => {
+    for (const path of paths) await agent.get('/api/v1' + path).expect(401);
+    identity.aal = 'aal1';
+    await login();
+    for (const path of paths) await agent.get('/api/v1' + path).expect(403);
+  });
+  it('não permite CSRF ausente nas mutações', async () => {
+    await login();
+    for (const path of [
+      '/goals',
+      '/goals/' + profileId + '/comments',
+      '/goals/' + profileId + '/manual-updates',
+      '/goals/' + profileId + '/snapshots',
+    ])
+      await agent
+        .post('/api/v1' + path)
+        .send({})
+        .expect(403);
+  });
+  it('ADMIN não configura metas e não recebe indicadores financeiros', async () => {
+    profile.role = 'ADMIN';
+    await login();
+    await agent.get('/api/v1/goals/analytics').expect(403);
+    const definitions = await agent.get('/api/v1/goals/definitions').expect(200);
+    expect(definitions.body.every((d) => !d.financial)).toBe(true);
+    await agent
+      .post('/api/v1/goals')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({})
+      .expect(403);
+    await agent
+      .patch('/api/v1/goals/' + profileId)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({})
+      .expect(403);
+    await agent.get('/api/v1/goals/' + profileId).expect(404);
+    const summary = await agent.get('/api/v1/goals/summary').expect(200);
+    expect(summary.body.financialInProgress).toBeNull();
+  });
+  it('rejeita realização ou role injetadas e alvo monetário em ponto flutuante', async () => {
+    await login();
+    await agent
+      .post('/api/v1/goals')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({
+        title: 'Meta manipulada',
+        target: 10.25,
+        realized: 999,
+        progress: 100,
+        role: 'OWNER',
+      })
+      .expect(400);
+    await agent.get('/api/v1/goals?status=INVALID').expect(400);
+    await agent.get('/api/v1/goals/not-an-id').expect(400);
+  });
+});
+describe('Clientes e contratos: sessão, MFA, CSRF e RBAC', () => {
+  const paths = [
+    '/clients',
+    '/clients/' + profileId,
+    '/clients/' + profileId + '/activity',
+    '/contracts',
+    '/contracts/summary',
+    '/contracts/expiring',
+    '/contracts/' + profileId,
+    '/contracts/' + profileId + '/documents',
+    '/contracts/' + profileId + '/documents/' + ownerId + '/download',
+  ];
+  it('exige sessão e MFA em todas as leituras novas', async () => {
+    for (const path of paths) await agent.get('/api/v1' + path).expect(401);
+    identity.aal = 'aal1';
+    await login();
+    for (const path of paths) await agent.get('/api/v1' + path).expect(403);
+  });
+  it('exige CSRF para mutações', async () => {
+    await login();
+    for (const path of [
+      '/clients',
+      '/contracts',
+      '/clients/from-lead/' + profileId,
+      '/contracts/' + profileId + '/amendments',
+    ])
+      await agent
+        .post('/api/v1' + path)
+        .send({})
+        .expect(403);
+  });
+  it('ADMIN não pode alterar status, reajustes, renovações nem consultar financeiro privado', async () => {
+    profile.role = 'ADMIN';
+    await login();
+    for (const path of [
+      '/contracts/' + profileId + '/amendments',
+      '/contracts/' + profileId + '/renewals',
+    ])
+      await agent
+        .post('/api/v1' + path)
+        .set('Origin', 'http://127.0.0.1:5173')
+        .set('X-CSRF-Token', csrf)
+        .send({})
+        .expect(403);
+    for (const path of ['/contracts/' + profileId + '/status', '/clients/' + profileId + '/status'])
+      await agent
+        .patch('/api/v1' + path)
+        .set('Origin', 'http://127.0.0.1:5173')
+        .set('X-CSRF-Token', csrf)
+        .send({})
+        .expect(403);
+    await agent.get('/api/v1/clients/' + profileId + '/financial').expect(403);
+  });
+  it('rejeita campos injetados e IDs inválidos', async () => {
+    await login();
+    await agent
+      .post('/api/v1/clients')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ companyName: 'Teste', segment: 'ADVOCACIA', responsibleId: profileId, role: 'OWNER' })
+      .expect(400);
+    await agent.get('/api/v1/contracts/not-an-id').expect(400);
+    await agent.get('/api/v1/clients?status=INVALID').expect(400);
+  });
+});
 describe('Prospecting security', () => {
   it('exige sessao e MFA nos endpoints novos', async () => {
     for (const path of ['/usage', '/assignees', '/leads', '/leads/' + profileId])

@@ -1,4 +1,8 @@
 import { FinanceHome } from '@/features/finance/FinanceHome';
+import { GoalsPage, GoalList, GoalDetails } from '@/features/goals/GoalsPage';
+import { GoalAnalyticsPage, GoalTeamPage } from '@/features/goals/GoalAnalyticsPage';
+import { ClientsPage, ClientDetails } from '@/features/clients/ClientsPage';
+import { ContractsPage, ContractDetails } from '@/features/clients/ContractsPage';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { lazy, Suspense } from 'react';
 import { modules } from '@vympa/shared';
@@ -55,6 +59,8 @@ export const router = createBrowserRouter([
           {
             element: <ProtectedRoute owner />,
             children: [
+              { path: '/goals/financial', element: <GoalList category="FINANCIAL" /> },
+              { path: '/goals/analytics', element: <GoalAnalyticsPage /> },
               {
                 path: '/finance/management',
                 element: (
@@ -84,6 +90,15 @@ export const router = createBrowserRouter([
             ),
           },
           { path: '/finance', element: <FinanceHome /> },
+          { path: '/goals', element: <GoalsPage /> },
+          { path: '/goals/commercial', element: <GoalList category="COMMERCIAL" /> },
+          { path: '/goals/team', element: <GoalTeamPage /> },
+          { path: '/goals/team/objectives', element: <GoalList category="TEAM" /> },
+          { path: '/goals/detail/:id', element: <GoalDetails /> },
+          { path: '/clients', element: <ClientsPage /> },
+          { path: '/clients/:id', element: <ClientDetails /> },
+          { path: '/contracts', element: <ContractsPage /> },
+          { path: '/contracts/:id', element: <ContractDetails /> },
           {
             path: '/finance/simulator',
             element: (
@@ -94,7 +109,17 @@ export const router = createBrowserRouter([
           },
           ...modules
             .filter(
-              ([path]) => !['dashboard', 'admin', 'prospecting', 'crm', 'finance'].includes(path),
+              ([path]) =>
+                ![
+                  'dashboard',
+                  'admin',
+                  'prospecting',
+                  'crm',
+                  'finance',
+                  'clients',
+                  'contracts',
+                  'goals',
+                ].includes(path),
             )
             .map(([path, label]) => ({ path, element: <ModulePlaceholder label={label} /> })),
           { path: '*', element: <ModulePlaceholder label="Página não encontrada" /> },

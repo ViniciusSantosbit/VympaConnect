@@ -65,6 +65,9 @@ export interface CategoryRecord {
   version: number;
 }
 export interface EntryRecord {
+  clientId?: string | null;
+  contractId?: string | null;
+  billingReference?: string | null;
   id: string;
   requestKey: string;
   description: string;

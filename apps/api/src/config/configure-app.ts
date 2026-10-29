@@ -19,7 +19,11 @@ export function configureApp(app: INestApplication) {
       response: import('express').Response,
       next: import('express').NextFunction,
     ) => {
-      if (/^\/api\/v1\/(auth|admin|prospecting|dashboard|finance)(\/|$)/.test(request.path))
+      if (
+        /^\/api\/v1\/(auth|admin|prospecting|dashboard|finance|clients|contracts|goals)(\/|$)/.test(
+          request.path,
+        )
+      )
         response.setHeader('Cache-Control', 'no-store');
       next();
     },

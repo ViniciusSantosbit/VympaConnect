@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   MapPin,
   Search,
@@ -64,6 +64,7 @@ const safeLink = (url: string | undefined) => {
   }
 };
 export function ProspectingPage({ crm = false }: { crm?: boolean }) {
+  const [searchParams] = useSearchParams();
   const client = useQueryClient();
   const [view, setView] = useState<'map' | 'list' | 'kanban'>(crm ? 'kanban' : 'map');
   const [filters, setFilters] = useState<Filters>(empty);
@@ -71,7 +72,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [create, setCreate] = useState(false);
-  const [leadId, setLeadId] = useState<string | null>(null);
+  const [leadId, setLeadId] = useState<string | null>(searchParams.get('leadId'));
   const [selected, setSelected] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult | null>(null);
   const [placesContext, setPlacesContext] = useState<SearchContext>(empty);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart,
@@ -177,7 +178,15 @@ export function ManagementPage() {
       save: (d) =>
         write(
           'transactions' + (row ? '/' + row.id : ''),
-          { ...d, requestKey: key, version: row?.version },
+          {
+            ...Object.fromEntries(
+              Object.entries(d).filter(
+                ([k, v]) => !['clientId', 'contractId', 'billingReference'].includes(k) || !!v,
+              ),
+            ),
+            requestKey: key,
+            version: row?.version,
+          },
           row ? 'PUT' : 'POST',
         ),
     });
@@ -624,6 +633,12 @@ export function ManagementPage() {
                     <tr key={e.id}>
                       <td>
                         <strong>{e.description}</strong>
+                        {e.contractId && (
+                          <small>
+                            <Link to={'/contracts/' + e.contractId}>Contrato relacionado</Link> ·{' '}
+                            {e.billingReference}
+                          </small>
+                        )}
                         <small>{e.category?.name}</small>
                       </td>
                       <td>{e.type === 'INCOME' ? 'Receita' : 'Despesa'}</td>

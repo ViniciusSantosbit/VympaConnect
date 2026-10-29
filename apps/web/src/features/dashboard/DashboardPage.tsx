@@ -31,6 +31,7 @@ import {
 import type { DashboardSummary, DashboardMetric } from '@vympa/shared';
 import { authApi } from '@/features/auth/auth-api';
 import { Button } from '@/components/ui/button';
+import { Metric, money } from '@/features/clients/commercial-ui';
 import {
   ChartContainer,
   EmptyState,
@@ -43,12 +44,12 @@ import {
 const indicators = [
   ['leads', 'Leads cadastrados', Users, '/prospecting', 'number'],
   ['negotiations', 'Leads em negociação', Handshake, '/crm', 'number'],
-  ['closedContracts', 'Contratos fechados', FileCheck2, '/contracts', 'number'],
+  ['closedContracts', 'Contratos ativos', FileCheck2, '/contracts', 'number'],
   ['activeClients', 'Clientes ativos', Users, '/clients', 'number'],
   ['monthlyRevenue', 'Receitas recebidas no mês', TrendingUp, '/finance', 'currency'],
   ['monthlyExpenses', 'Despesas mensais', Wallet, '/finance', 'currency'],
   ['balance', 'Saldo financeiro', CircleDollarSign, '/finance', 'currency'],
-  ['goalProgress', 'Progresso das metas', Flag, '/goals', 'percent'],
+  ['goalProgress', 'Alcance médio das metas comerciais do mês', Flag, '/goals', 'percent'],
 ] as const satisfies readonly (readonly [
   DashboardMetric,
   string,
@@ -99,6 +100,36 @@ export function DashboardPage() {
         />
       ) : (
         <>
+          {data.goalIndicators && (
+            <div className="finance-metrics">
+              <Metric label="Metas ativas" value={data.goalIndicators.active} />
+              <Metric label="Metas alcançadas" value={data.goalIndicators.achieved} />
+              <Metric label="Metas próximas do prazo" value={data.goalIndicators.expiring} />
+              {data.goalIndicators.financialInProgress !== null && (
+                <Metric
+                  label="Objetivos financeiros em andamento"
+                  value={data.goalIndicators.financialInProgress}
+                />
+              )}
+            </div>
+          )}
+          {data.relationships && (
+            <div className="finance-metrics">
+              <Metric label="Total de clientes" value={data.relationships.totalClients} />
+              <Metric label="Clientes em implantação" value={data.relationships.onboarding} />
+              <Metric
+                label="Contratos próximos do vencimento"
+                value={data.relationships.expiring}
+              />
+              <Metric label="Aguardando assinatura" value={data.relationships.pendingSignature} />
+              {data.relationships.monthlyContractedCents !== null && (
+                <Metric
+                  label="Valor mensal contratado · separado do caixa"
+                  value={money(Number(data.relationships.monthlyContractedCents))}
+                />
+              )}
+            </div>
+          )}
           <div className="dashboard-welcome">
             <div>
               <span className="welcome-icon">

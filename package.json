@@ -42,6 +42,10 @@
     "auth:recover-mfa": "npm run auth:recover-mfa -w @vympa/api --",
     "test:integration:database": "npm run test:integration:database -w @vympa/api",
     "test:integration:prospecting": "npm run test:integration:prospecting -w @vympa/api",
+    "test:integration:clients-contracts": "npm run test:integration:clients-contracts -w @vympa/api",
+    "test:integration:goals": "npm run test:integration:goals -w @vympa/api",
+    "test:audit:goals": "npm run test:audit:goals -w @vympa/api",
+    "test:audit:clients-contracts": "npm run test:audit:clients-contracts -w @vympa/api",
     "test:audit:prospecting": "npm run test:audit:prospecting -w @vympa/api --",
     "test:audit:finance": "npm run test:audit:prospecting -- --finance"
   },

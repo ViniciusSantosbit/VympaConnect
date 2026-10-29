@@ -5,16 +5,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:5173', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://127.0.0.1:5174', trace: 'retain-on-failure' },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run dev:web',
+    command: 'npm run build -w @vympa/shared && npm run dev -w @vympa/web -- --port 5174',
     env: { VITE_GEOAPIFY_MAPS_KEY: 'test-browser-key' },
-    url: 'http://127.0.0.1:5173',
-    reuseExistingServer: !process.env.CI,
+    url: 'http://127.0.0.1:5174',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });
