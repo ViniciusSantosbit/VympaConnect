@@ -22,7 +22,9 @@
     "auth:bootstrap-owner": "node scripts/auth-admin.mjs bootstrap-owner",
     "auth:recover-mfa": "node scripts/auth-admin.mjs recover-mfa",
     "test:integration:database": "node scripts/test-auth-database.mjs",
-    "test:integration:prospecting": "node scripts/test-prospecting-database.mjs"
+    "test:integration:prospecting": "node scripts/test-prospecting-database.mjs",
+    "test:audit:prospecting": "node scripts/audit-prospecting.mjs",
+    "test:audit:finance": "node scripts/audit-prospecting.mjs --finance"
   },
   "dependencies": {
     "@nestjs/common": "12.2.0",

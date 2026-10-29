@@ -631,3 +631,40 @@
   padding: 12px;
   border-radius: 8px;
 }
+
+.map-area-actions {
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #0d1924;
+  border-top: 1px solid #2d4c48;
+}
+.map-area-actions small {
+  color: #a2b9c4;
+  flex: 1 1 200px;
+  font-size: 11px;
+}
+.incomplete-place {
+  color: #f7cf83;
+  border-left: 3px solid #dca94f;
+  padding: 8px 12px;
+  background: #322b1b;
+}
+
+.map-canvas {
+  display: flex;
+  flex-direction: column;
+}
+.map-canvas .geoapify-map {
+  flex: 1;
+  height: auto;
+  min-height: 240px;
+}
+.map-canvas .leaflet-prospect-map {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  min-height: 0;
+}

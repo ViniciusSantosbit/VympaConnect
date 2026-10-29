@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
-import type { ExternalPlace, LeadStatus } from '@vympa/shared';
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  Tooltip,
+  useMap,
+  useMapEvents,
+} from 'react-leaflet';
+import type { ExternalPlace, LeadStatus, MapBounds } from '@vympa/shared';
 import 'leaflet/dist/leaflet.css';
 const colors: Record<LeadStatus, string> = {
   NOT_CONTACTED: '#64748b',
@@ -29,19 +36,38 @@ function Focus({ places, selected }: { places: ExternalPlace[]; selected: string
   }, [map]);
   return null;
 }
+function Viewport({ onChange }: { onChange?: (bounds: MapBounds) => void }) {
+  const report = () => {
+    const b = map.getBounds();
+    onChange?.({ west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() });
+  };
+  const map = useMapEvents({ moveend: report, zoomend: report });
+  useEffect(() => {
+    const b = map.getBounds();
+    onChange?.({ west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() });
+  }, [map, onChange]);
+  return null;
+}
 export default function ProspectingMap({
   places,
   selected,
   onSelect,
   statuses,
+  onBoundsChange,
 }: {
   places: ExternalPlace[];
   selected: string | null;
   onSelect: (id: string) => void;
   statuses: Record<string, LeadStatus>;
+  onBoundsChange?: (bounds: MapBounds) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const groups = new Map<string, ExternalPlace[]>();
+  for (const p of places.filter((p) => p.location)) {
+    const key = p.location!.latitude.toFixed(4) + ',' + p.location!.longitude.toFixed(4);
+    groups.set(key, [...(groups.get(key) ?? []), p]);
+  }
   return (
     <div className="geoapify-map">
       {failed ? (
@@ -82,24 +108,31 @@ export default function ProspectingMap({
           }}
         />
         <Focus places={places} selected={selected} />
-        {places
-          .filter((p) => p.location)
-          .map((p) => (
+        <Viewport onChange={onBoundsChange} />
+        {[...groups.entries()].map(([key, group]) => {
+          const p = group.find((p) => p.id === selected) ?? group[0]!;
+          const next = group[(group.findIndex((p) => p.id === selected) + 1) % group.length]!;
+          return (
             <CircleMarker
-              key={p.id}
+              key={key}
               center={[p.location!.latitude, p.location!.longitude]}
-              radius={selected === p.id ? 12 : 8}
+              radius={selected === p.id ? 13 : group.length > 1 ? 11 : 8}
               pathOptions={{
                 color: selected === p.id ? '#fff' : colors[statuses[p.id] ?? 'NOT_CONTACTED'],
                 fillColor: colors[statuses[p.id] ?? 'NOT_CONTACTED'],
-                fillOpacity: 0.9,
+                fillOpacity: 0.95,
                 weight: 3,
               }}
-              eventHandlers={{ click: () => onSelect(p.id) }}
+              eventHandlers={{ click: () => onSelect(next.id) }}
             >
-              <Tooltip>{p.displayName?.text ?? 'Estabelecimento'}</Tooltip>
+              <Tooltip permanent={group.length > 1}>
+                {group.length > 1
+                  ? group.length + ' registros próximos — clique para alternar'
+                  : p.displayName?.text?.trim() || 'Local sem identificação — validar'}
+              </Tooltip>
             </CircleMarker>
-          ))}
+          );
+        })}
       </MapContainer>
     </div>
   );

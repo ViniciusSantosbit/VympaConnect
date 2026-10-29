@@ -45,7 +45,7 @@ const indicators = [
   ['negotiations', 'Leads em negociação', Handshake, '/crm', 'number'],
   ['closedContracts', 'Contratos fechados', FileCheck2, '/contracts', 'number'],
   ['activeClients', 'Clientes ativos', Users, '/clients', 'number'],
-  ['monthlyRevenue', 'Receita recorrente mensal', TrendingUp, '/finance', 'currency'],
+  ['monthlyRevenue', 'Receitas recebidas no mês', TrendingUp, '/finance', 'currency'],
   ['monthlyExpenses', 'Despesas mensais', Wallet, '/finance', 'currency'],
   ['balance', 'Saldo financeiro', CircleDollarSign, '/finance', 'currency'],
   ['goalProgress', 'Progresso das metas', Flag, '/goals', 'percent'],
@@ -202,7 +202,7 @@ export function DashboardPage() {
                 <EmptyState
                   icon={ChartNoAxesCombined}
                   title="Ainda não existem dados financeiros"
-                  description="Receitas e despesas aparecerão aqui quando o módulo Financeiro estiver disponível."
+                  description="Dados financeiros realizados aparecem para OWNER quando disponíveis."
                 />
               )}
             </ChartContainer>

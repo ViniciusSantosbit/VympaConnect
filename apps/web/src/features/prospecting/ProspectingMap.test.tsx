@@ -5,6 +5,12 @@ import ProspectingMap from './ProspectingMap';
 const map = vi.hoisted(() => ({
   fitBounds: vi.fn(),
   setView: vi.fn(),
+  getBounds: () => ({
+    getWest: () => -47.95,
+    getEast: () => -47.85,
+    getSouth: () => -15.85,
+    getNorth: () => -15.75,
+  }),
   getContainer: () => document.createElement('div'),
 }));
 vi.mock('react-leaflet', () => ({
@@ -28,6 +34,7 @@ vi.mock('react-leaflet', () => ({
   }) => <button onClick={eventHandlers.click}>{children}</button>,
   Tooltip: ({ children }: { children: ReactNode }) => children,
   useMap: () => map,
+  useMapEvents: () => map,
 }));
 beforeEach(() => {
   vi.stubGlobal(
@@ -73,4 +80,40 @@ describe('Mapa Geoapify sem transporte externo', () => {
     fireEvent.click(screen.getByText('Escritório'));
     expect(select).toHaveBeenCalledWith('geoapify_51abc');
   });
+});
+
+it('publica os limites visíveis sem executar pesquisa', () => {
+  const onBoundsChange = vi.fn();
+  render(
+    <ProspectingMap
+      places={[]}
+      selected={null}
+      onSelect={vi.fn()}
+      statuses={{}}
+      onBoundsChange={onBoundsChange}
+    />,
+  );
+  expect(onBoundsChange).toHaveBeenCalledWith({
+    west: -47.95,
+    east: -47.85,
+    south: -15.85,
+    north: -15.75,
+  });
+});
+it('agrupa locais coincidentes e permite alternar seleção', () => {
+  const select = vi.fn();
+  const places = [
+    { id: 'geoapify_51abc', location: { latitude: -15.8, longitude: -47.9 } },
+    { id: 'geoapify_51def', location: { latitude: -15.8, longitude: -47.9 } },
+  ];
+  const view = render(
+    <ProspectingMap places={places} selected={null} onSelect={select} statuses={{}} />,
+  );
+  fireEvent.click(screen.getByText('2 registros próximos — clique para alternar'));
+  expect(select).toHaveBeenLastCalledWith('geoapify_51abc');
+  view.rerender(
+    <ProspectingMap places={places} selected="geoapify_51abc" onSelect={select} statuses={{}} />,
+  );
+  fireEvent.click(screen.getByText('2 registros próximos — clique para alternar'));
+  expect(select).toHaveBeenLastCalledWith('geoapify_51def');
 });

@@ -88,3 +88,10 @@ export interface LeadRecord {
   }[];
   followUps?: { id: string; action: string; dueAt: string; completedAt: string | null }[];
 }
+
+export interface MapBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}

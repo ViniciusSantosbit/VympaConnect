@@ -1,3 +1,4 @@
+import { FinanceModule } from './modules/finance/finance.module.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -52,6 +53,7 @@ import { ProspectingModule } from './modules/prospecting/prospecting.module.js';
     HealthModule,
     DashboardModule,
     ProspectingModule,
+    FinanceModule,
     AuthModule,
     AdminUsersModule,
   ],

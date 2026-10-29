@@ -17,7 +17,7 @@ import {
   leadStatuses,
   statusLabels,
 } from '@vympa/shared';
-import type { ExternalPlace, LeadRecord, LeadStatus, LeadSegment } from '@vympa/shared';
+import type { ExternalPlace, LeadRecord, LeadStatus, LeadSegment, MapBounds } from '@vympa/shared';
 import { authApi } from '@/features/auth/auth-api';
 import { prospectMessage as authMessage } from './prospecting-errors';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,8 @@ const empty: Filters = {
   status: '',
   assigneeId: '',
 };
+type SearchContext = Filters & { bounds?: MapBounds };
+type SearchInput = { context: SearchContext; pageToken?: string };
 type SearchResult = {
   places: ExternalPlace[];
   nextPageToken: string | null;
@@ -72,9 +74,10 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   const [leadId, setLeadId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult | null>(null);
-  const [placesContext, setPlacesContext] = useState<Filters>(empty);
+  const [placesContext, setPlacesContext] = useState<SearchContext>(empty);
   const [place, setPlace] = useState<ExternalPlace | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [viewportBounds, setViewportBounds] = useState<MapBounds | null>(null);
   const params = new URLSearchParams(Object.entries(applied).filter(([, v]) => v));
   params.set('page', String(page));
   const leads = useQuery({
@@ -104,8 +107,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
     retry: false,
   });
   const search = useMutation({
-    mutationFn: (pageToken?: string) => {
-      const context = pageToken ? placesContext : { ...filters };
+    mutationFn: ({ context, pageToken }: SearchInput) => {
       return authApi<SearchResult>('/prospecting/places/search', 'POST', {
         segment: context.segment || 'ADVOCACIA',
         region: context.region || undefined,
@@ -113,16 +115,14 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         city: context.city || undefined,
         query: context.query || undefined,
         pageToken,
+        bounds: context.bounds,
       });
     },
-    onMutate: (pageToken) => {
-      if (!pageToken) setPlacesContext({ ...filters });
-    },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      setPlacesContext(variables.context);
       setResults(data);
       setSelected(null);
       setPlace(null);
-      void usage.refetch();
     },
     onSettled: () => {
       void usage.refetch();
@@ -143,7 +143,6 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
       authApi<ExternalPlace>('/prospecting/places/' + encodeURIComponent(id) + '/details', 'POST'),
     onSuccess: (data) => {
       setPlace(data);
-      setSelected(data.id);
     },
     onSettled: () => {
       void usage.refetch();
@@ -159,6 +158,12 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
       body: unknown;
       method?: string;
     }) => authApi<LeadRecord>('/prospecting/' + path, method, body),
+    onError: (error) => {
+      if ((error as { response?: { status?: number } }).response?.status === 409) {
+        void client.invalidateQueries({ queryKey: ['place-references'] });
+        void client.invalidateQueries({ queryKey: ['leads'] });
+      }
+    },
     onSuccess: (data, variables) => {
       if (data.id && variables.path === 'leads') setLeadId(data.id);
       if (data.externalReference)
@@ -371,7 +376,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
           <Button
             disabled={!usage.data?.configured || search.isPending}
             onClick={() => {
-              search.mutate(undefined);
+              search.mutate({ context: { ...filters } });
               setShowFilters(false);
             }}
           >
@@ -414,6 +419,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                         selected={selected}
                         onSelect={select}
                         statuses={statuses}
+                        onBoundsChange={setViewportBounds}
                       />
                     </Suspense>
                   ) : (
@@ -432,6 +438,37 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       )}
                     </div>
                   )}
+                  {mapLoaded && (
+                    <div className="map-area-actions">
+                      <Button
+                        disabled={
+                          !usage.data?.configured ||
+                          search.isPending ||
+                          !viewportBounds ||
+                          viewportBounds.east - viewportBounds.west > 2 ||
+                          viewportBounds.north - viewportBounds.south > 2
+                        }
+                        onClick={() => {
+                          if (viewportBounds)
+                            search.mutate({
+                              context: {
+                                ...filters,
+                                region: '',
+                                state: '',
+                                city: '',
+                                bounds: viewportBounds,
+                              },
+                            });
+                        }}
+                      >
+                        Buscar nesta área
+                      </Button>
+                      <small>
+                        Aproxime de uma cidade. A área visível substitui região, estado e cidade;
+                        segmento e nome continuam aplicados. Mover o mapa não faz consultas.
+                      </small>
+                    </div>
+                  )}
                 </div>
                 <div className="places-results">
                   <h2>Resultados da busca</h2>
@@ -445,7 +482,9 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                           key={p.id}
                           onClick={() => select(p.id)}
                         >
-                          <strong>{p.displayName?.text ?? 'Nome indisponível'}</strong>
+                          <strong>
+                            {p.displayName?.text?.trim() || 'Local sem identificação — validar'}
+                          </strong>
                           <span>{p.formattedAddress ?? 'Endereço não informado'}</span>
                           <small
                             className={`status-badge status-${statuses[p.id] ?? 'NOT_CONTACTED'}`}
@@ -470,7 +509,9 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                     <Button
                       variant="outline"
                       disabled={search.isPending}
-                      onClick={() => search.mutate(results.nextPageToken!)}
+                      onClick={() =>
+                        search.mutate({ context: placesContext, pageToken: results.nextPageToken! })
+                      }
                     >
                       Próxima página Geoapify
                     </Button>
@@ -481,8 +522,16 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
               {activePlace && (
                 <div className="place-panel">
                   <div>
-                    <h2>{activePlace.displayName?.text ?? 'Nome indisponível'}</h2>
+                    <h2>
+                      {activePlace.displayName?.text?.trim() || 'Local sem identificação — validar'}
+                    </h2>
                     <span>{segmentLabels[placesContext.segment || 'ADVOCACIA']}</span>
+                    {!activePlace.displayName?.text?.trim() && (
+                      <p role="note" className="incomplete-place">
+                        Registro incompleto da fonte. Não é um escritório confirmado. Verifique a
+                        identidade antes de cadastrar um lead.
+                      </p>
+                    )}
                     <p>{activePlace.formattedAddress ?? 'Endereço indisponível'}</p>
                     {safeLink(activePlace.mapUri) && (
                       <a
@@ -531,7 +580,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       </Button>
                     ) : (
                       <Button
-                        disabled={change.isPending}
+                        disabled={change.isPending || !activePlace.displayName?.text?.trim()}
                         onClick={() =>
                           change.mutate({
                             path: 'leads',
@@ -586,7 +635,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       <span>
                         <strong>
                           {l.companyName ??
-                            `Referência Geoapify · ${l.externalReference?.placeId.slice(0, 12) ?? l.id.slice(0, 8)}`}
+                            `Referência externa · ${l.externalReference?.placeId.slice(0, 12) ?? l.id.slice(0, 8)}`}
                         </strong>
                         <small>
                           {segmentLabels[l.segment]} ·{' '}

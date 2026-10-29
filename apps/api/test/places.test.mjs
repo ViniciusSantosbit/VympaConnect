@@ -144,3 +144,57 @@ describe('Geoapify official transport', () => {
     await expect(service.details('geoapify_51abcdef1234', 'p')).rejects.toThrow('inválida');
   });
 });
+
+describe('Auditoria de área e falhas', () => {
+  const bounds = { west: -47.95, south: -15.85, east: -47.85, north: -15.75 };
+  it.each(Object.entries(categories))(
+    'busca área explícita na categoria %s com uma chamada',
+    async (segment, category) => {
+      const r = await service.search({ segment, bounds }, 'p');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const u = new URL(fetchMock.mock.calls[0][0]);
+      expect(u.searchParams.get('filter')).toBe('rect:-47.95,-15.85,-47.85,-15.75');
+      expect(u.searchParams.get('categories')).toBe(category);
+      expect(r.places).toHaveLength(1);
+    },
+  );
+  it.each([
+    { west: 0, south: 0, east: 1, north: 1 },
+    { west: -50, south: -20, east: -40, north: -10 },
+    { west: -47, south: -15, east: -48, north: -16 },
+  ])('recusa área inválida sem consumo', async (bounds) => {
+    await expect(service.search({ segment: 'ADVOCACIA', bounds }, 'p')).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('não combina localidade e limites de mapa', async () => {
+    await expect(
+      service.search({ segment: 'ADVOCACIA', state: 'DF', bounds }, 'p'),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('retorna vazio verdadeiro e não inventa nome ou telefone', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ features: [] }));
+    expect((await service.search({ segment: 'ADVOCACIA', bounds }, 'p')).places).toEqual([]);
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ features: [{ properties: { ...feature.properties, name: undefined } }] }),
+    );
+    const r = await service.search({ segment: 'ADVOCACIA', bounds }, 'p');
+    expect(r.places[0].displayName).toBeUndefined();
+    expect(r.places[0].nationalPhoneNumber).toBeUndefined();
+  });
+  it('não retorna estabelecimentos fora do Brasil', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ features: [{ properties: { ...feature.properties, country_code: 'us' } }] }),
+    );
+    expect((await service.search({ segment: 'ADVOCACIA', bounds }, 'p')).places).toEqual([]);
+  });
+  it('trata timeout sem retry nem vazamento', async () => {
+    fetchMock.mockRejectedValueOnce(new DOMException('test-server-key', 'TimeoutError'));
+    await expect(service.search({ segment: 'ADVOCACIA', bounds }, 'p')).rejects.toThrow(
+      'indisponível',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

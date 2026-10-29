@@ -12,6 +12,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev:web',
+    env: { VITE_GEOAPIFY_MAPS_KEY: 'test-browser-key' },
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

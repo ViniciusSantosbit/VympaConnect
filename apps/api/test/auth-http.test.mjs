@@ -76,6 +76,8 @@ beforeEach(async () => {
     tokens: (value) => ({ access_token: value.access_token, refresh_token: value.refresh_token }),
   };
   db = {
+    financialOpeningBalance: { findUnique: jest.fn(async () => null) },
+    financialTransaction: { groupBy: jest.fn(async () => []) },
     lead: { groupBy: jest.fn(async () => []) },
     leadEvent: { findMany: jest.fn(async () => []) },
     placesUsage: { findMany: jest.fn(async () => []) },
@@ -420,4 +422,15 @@ describe('Prospecting security', () => {
       .expect(400);
     await agent.get('/api/v1/prospecting/leads?status=INVALID').expect(400);
   });
+});
+
+it('falha de banco no CRM retorna erro seguro sem dados de conexão', async () => {
+  await login();
+  db.lead.findMany = jest.fn(async () => []);
+  db.lead.count = jest.fn(async () => 0);
+  db.$transaction.mockRejectedValueOnce(
+    new Error('postgresql://sensitive-user:sensitive-password@private-host/db'),
+  );
+  const response = await agent.get('/api/v1/prospecting/leads').expect(500);
+  expect(JSON.stringify(response.body)).not.toMatch(/sensitive|private-host|postgresql|stack/);
 });

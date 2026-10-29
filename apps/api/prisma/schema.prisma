@@ -44,6 +44,11 @@ model AdminProfile {
   createdLeads Lead[] @relation("LeadCreator")
   leadEvents LeadEvent[]
   placesUsage PlacesUsage[]
+  proposalsCreated Proposal[] @relation("ProposalCreator")
+  proposalsAssigned Proposal[] @relation("ProposalResponsible")
+  financialEntries FinancialTransaction[]
+  investments Investment[]
+  financeAudits FinanceAuditEvent[]
 
   @@index([active, role])
   @@map("admin_profiles")
@@ -88,6 +93,7 @@ model Lead {
   externalReference PlaceReference?
   events LeadEvent[]
   followUps LeadFollowUp[]
+  proposals Proposal[]
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   @@index([status, updatedAt])
@@ -213,4 +219,245 @@ model MfaRecoveryRequest {
   @@index([identityId, expiresAt])
   @@map("mfa_recovery_requests")
   @@schema("vympa_private")
+}
+
+model ServiceOffering {
+ id String @id @default(uuid()) @db.Uuid
+ code String @unique @db.VarChar(40)
+ name String @db.VarChar(180)
+ description String @db.VarChar(3000)
+ baseCents Int?
+ setupCents Int?
+ monthlyCents Int?
+ operatingCents Int?
+ active Boolean @default(true)
+ notes String? @db.VarChar(3000)
+ version Int @default(1)
+ priceHistory ServicePriceVersion[]
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@map("service_offerings")
+ @@schema("vympa_private")
+}
+model ServicePriceVersion {
+ id String @id @default(uuid()) @db.Uuid
+ offeringId String @db.Uuid
+ offering ServiceOffering @relation(fields:[offeringId],references:[id],onDelete:Restrict)
+ version Int
+ snapshot Json
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ @@unique([offeringId,version])
+ @@map("service_price_versions")
+ @@schema("vympa_private")
+}
+model DiscountPolicy {
+ id String @id @default("default") @db.VarChar(32)
+ rules Json
+ provisional Boolean @default(true)
+ version Int @default(1)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@map("discount_policies")
+ @@schema("vympa_private")
+}
+enum ProposalStatus {
+ DRAFT
+ PREPARED
+ SENT
+ ACCEPTED
+ REJECTED
+ EXPIRED
+ @@schema("vympa_private")
+}
+model Proposal {
+ id String @id @default(uuid()) @db.Uuid
+ companyName String @db.VarChar(180)
+ segment LeadSegment
+ leadId String? @db.Uuid
+ lead Lead? @relation(fields:[leadId],references:[id],onDelete:Restrict)
+ responsibleId String @db.Uuid
+ responsible AdminProfile @relation("ProposalResponsible",fields:[responsibleId],references:[id],onDelete:Restrict)
+ createdById String @db.Uuid
+ createdBy AdminProfile @relation("ProposalCreator",fields:[createdById],references:[id],onDelete:Restrict)
+ status ProposalStatus @default(DRAFT)
+ version Int @default(1)
+ simulationDate DateTime @db.Date
+ input Json
+ result Json
+ versions ProposalVersion[]
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@index([status,updatedAt])
+ @@index([leadId])
+ @@index([responsibleId])
+ @@map("proposals")
+ @@schema("vympa_private")
+}
+model ProposalVersion {
+ id String @id @default(uuid()) @db.Uuid
+ proposalId String @db.Uuid
+ proposal Proposal @relation(fields:[proposalId],references:[id],onDelete:Restrict)
+ version Int
+ snapshot Json
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ @@unique([proposalId,version])
+ @@map("proposal_versions")
+ @@schema("vympa_private")
+}
+enum FinancialType {
+ INCOME
+ EXPENSE
+ @@schema("vympa_private")
+}
+enum FinancialStatus {
+ PLANNED
+ PENDING
+ SETTLED
+ CANCELLED
+ @@schema("vympa_private")
+}
+enum FinancialGroup {
+ GENERAL
+ AI
+ INFRA
+ INVESTMENT
+ @@schema("vympa_private")
+}
+model FinancialCategory {
+ id String @id @default(uuid()) @db.Uuid
+ name String @unique @db.VarChar(100)
+ group FinancialGroup @default(GENERAL)
+ active Boolean @default(true)
+ version Int @default(1)
+ entries FinancialTransaction[]
+ recurring RecurringTransaction[]
+ investments Investment[]
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@map("financial_categories")
+ @@schema("vympa_private")
+}
+model FinancialTransaction {
+ id String @id @default(uuid()) @db.Uuid
+ requestKey String @unique @db.VarChar(100)
+ description String @db.VarChar(250)
+ type FinancialType
+ amountCents Int
+ competenceOn DateTime @db.Date
+ dueOn DateTime? @db.Date
+ settledOn DateTime? @db.Date
+ status FinancialStatus
+ categoryId String @db.Uuid
+ category FinancialCategory @relation(fields:[categoryId],references:[id],onDelete:Restrict)
+ categoryGroup FinancialGroup
+ counterparty String? @db.VarChar(180)
+ serviceReference String? @db.VarChar(180)
+ paymentMethod String? @db.VarChar(100)
+ notes String? @db.VarChar(3000)
+ createdById String @db.Uuid
+ createdBy AdminProfile @relation(fields:[createdById],references:[id],onDelete:Restrict)
+ recurringId String? @db.Uuid
+ recurring RecurringTransaction? @relation(fields:[recurringId],references:[id],onDelete:Restrict)
+ recurrencePeriod String? @db.VarChar(7)
+ investment Investment?
+ aiCost AiCost?
+ version Int @default(1)
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@unique([recurringId,recurrencePeriod])
+ @@index([status,settledOn,type])
+ @@index([competenceOn,categoryId])
+ @@index([dueOn,status])
+ @@map("financial_transactions")
+ @@schema("vympa_private")
+}
+model RecurringTransaction {
+ id String @id @default(uuid()) @db.Uuid
+ description String @db.VarChar(250)
+ amountCents Int
+ categoryId String @db.Uuid
+ category FinancialCategory @relation(fields:[categoryId],references:[id],onDelete:Restrict)
+ dueDay Int
+ startsOn DateTime @db.Date
+ endsOn DateTime? @db.Date
+ supplier String? @db.VarChar(180)
+ notes String? @db.VarChar(3000)
+ active Boolean @default(true)
+ version Int @default(1)
+ entries FinancialTransaction[]
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@map("recurring_transactions")
+ @@schema("vympa_private")
+}
+enum InvestmentStatus {
+ PLANNED
+ APPROVED
+ PAID
+ CANCELLED
+ @@schema("vympa_private")
+}
+model Investment {
+ id String @id @default(uuid()) @db.Uuid
+ name String @db.VarChar(180)
+ description String? @db.VarChar(3000)
+ estimatedCents Int
+ actualCents Int?
+ priority String @db.VarChar(10)
+ status InvestmentStatus @default(PLANNED)
+ plannedOn DateTime @db.Date
+ categoryId String @db.Uuid
+ category FinancialCategory @relation(fields:[categoryId],references:[id],onDelete:Restrict)
+ responsibleId String @db.Uuid
+ responsible AdminProfile @relation(fields:[responsibleId],references:[id],onDelete:Restrict)
+ transactionId String? @unique @db.Uuid
+ transaction FinancialTransaction? @relation(fields:[transactionId],references:[id],onDelete:Restrict)
+ notes String? @db.VarChar(3000)
+ version Int @default(1)
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@index([status,plannedOn])
+ @@map("investments")
+ @@schema("vympa_private")
+}
+model AiCost {
+ id String @id @default(uuid()) @db.Uuid
+ provider String @db.VarChar(100)
+ modelService String @db.VarChar(180)
+ amountCents Int
+ period String @db.VarChar(7)
+ projectReference String? @db.VarChar(180)
+ unit String? @db.VarChar(80)
+ quantity String? @db.VarChar(80)
+ notes String? @db.VarChar(3000)
+ transactionId String? @unique @db.Uuid
+ transaction FinancialTransaction? @relation(fields:[transactionId],references:[id],onDelete:Restrict)
+ version Int @default(1)
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@index([period])
+ @@map("ai_costs")
+ @@schema("vympa_private")
+}
+model FinancialOpeningBalance {
+ id String @id @default("default") @db.VarChar(32)
+ amountCents Int
+ effectiveOn DateTime @db.Date
+ version Int @default(1)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@map("financial_opening_balances")
+ @@schema("vympa_private")
+}
+model FinanceAuditEvent {
+ id String @id @default(uuid()) @db.Uuid
+ actorId String @db.Uuid
+ actor AdminProfile @relation(fields:[actorId],references:[id],onDelete:Restrict)
+ action String @db.VarChar(80)
+ entityId String @db.VarChar(100)
+ before Json?
+ after Json
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ @@index([entityId,createdAt])
+ @@index([actorId,createdAt])
+ @@map("finance_audit_events")
+ @@schema("vympa_private")
 }

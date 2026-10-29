@@ -5,6 +5,19 @@ import { MemoryRouter } from 'react-router';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { authApi } from '@/features/auth/auth-api';
 import { ProspectingPage } from './ProspectingPage';
+vi.mock('./ProspectingMap', () => ({
+  default: ({
+    onBoundsChange,
+  }: {
+    onBoundsChange: (bounds: { west: number; south: number; east: number; north: number }) => void;
+  }) => (
+    <button
+      onClick={() => onBoundsChange({ west: -47.95, south: -15.85, east: -47.85, north: -15.75 })}
+    >
+      Simular navegação do mapa
+    </button>
+  ),
+}));
 vi.mock('@/features/auth/auth-api', () => ({
   authApi: vi.fn(),
   authMessage: () => 'Falha de conexão ou solicitação.',
@@ -98,4 +111,115 @@ describe('Central de prospecção', () => {
       expect(authApi).toHaveBeenCalledWith('/prospecting/places/test_place/details', 'POST'),
     );
   });
+});
+
+function externalFixtures(places: { id: string; displayName?: { text: string } }[]) {
+  vi.mocked(authApi).mockImplementation(async (path) => {
+    if (path.endsWith('/usage'))
+      return { configured: true, hour: 0, day: 0, hourLimit: 20, dayLimit: 100 } as never;
+    if (path.endsWith('/assignees') || path.endsWith('/places/references')) return [] as never;
+    if (path.includes('/leads?')) return { items: [], total: 0, pageSize: 30 } as never;
+    if (path.endsWith('/places/search'))
+      return { places, references: [], nextPageToken: null } as never;
+    throw new Error('Unexpected request');
+  });
+}
+it('busca nesta área só após clique e não mistura filtros de localidade', async () => {
+  vi.stubEnv('VITE_GEOAPIFY_MAPS_KEY', 'test-browser-key');
+  externalFixtures([]);
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Carregar mapa Geoapify' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Simular navegação do mapa' }));
+  expect(vi.mocked(authApi).mock.calls.some(([p]) => p.endsWith('/places/search'))).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Buscar nesta área' }));
+  await waitFor(() =>
+    expect(authApi).toHaveBeenCalledWith(
+      '/prospecting/places/search',
+      'POST',
+      expect.objectContaining({
+        bounds: { west: -47.95, south: -15.85, east: -47.85, north: -15.75 },
+        state: undefined,
+        city: undefined,
+        region: undefined,
+      }),
+    ),
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Simular navegação do mapa' }));
+  expect(vi.mocked(authApi).mock.calls.filter(([p]) => p.endsWith('/places/search'))).toHaveLength(
+    1,
+  );
+});
+it('não cadastra resultado sem nome como escritório confirmado', async () => {
+  externalFixtures([{ id: 'geoapify_51abc' }]);
+  mount();
+  await userEvent.click(await screen.findByRole('button', { name: 'Buscar no Geoapify' }));
+  await userEvent.click(
+    await screen.findByRole('button', { name: /Local sem identificação — validar/ }),
+  );
+  expect(screen.getByRole('note')).toHaveTextContent('Não é um escritório confirmado');
+  expect(screen.getByRole('button', { name: 'Adicionar à prospecção' })).toBeDisabled();
+  expect(vi.mocked(authApi).mock.calls.some(([p]) => p.endsWith('/leads'))).toBe(false);
+});
+it('resposta atrasada de detalhes não muda seleção atual', async () => {
+  externalFixtures([
+    { id: 'geoapify_51abc', displayName: { text: 'Empresa A' } },
+    { id: 'geoapify_51def', displayName: { text: 'Empresa B' } },
+  ]);
+  const normal = vi.mocked(authApi).getMockImplementation()!;
+  let resolveDetails: (value: never) => void = () => {};
+  vi.mocked(authApi).mockImplementation((path, ...args) =>
+    path.endsWith('/details')
+      ? new Promise((resolve) => {
+          resolveDetails = resolve;
+        })
+      : normal(path, ...args),
+  );
+  mount();
+  await userEvent.click(await screen.findByRole('button', { name: 'Buscar no Geoapify' }));
+  await userEvent.click(await screen.findByRole('button', { name: /Empresa A/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Consultar detalhes Geoapify' }));
+  await userEvent.click(screen.getByRole('button', { name: /Empresa B/ }));
+  resolveDetails({ id: 'geoapify_51abc', displayName: { text: 'Detalhes A' } } as never);
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: 'Empresa B' })).toBeInTheDocument(),
+  );
+  expect(screen.queryByRole('heading', { name: 'Detalhes A' })).not.toBeInTheDocument();
+});
+
+it('reconcilia conflito concorrente e oferece abrir o lead já existente', async () => {
+  externalFixtures([{ id: 'geoapify_51abc', displayName: { text: 'Empresa existente' } }]);
+  const normal = vi.mocked(authApi).getMockImplementation()!;
+  let duplicate = false;
+  vi.mocked(authApi).mockImplementation(async (path, ...args) => {
+    if (path.endsWith('/places/references'))
+      return (
+        duplicate
+          ? [
+              {
+                placeId: 'geoapify_51abc',
+                lead: {
+                  id: '11111111-1111-4111-8111-111111111111',
+                  status: 'CONTACTED',
+                  assigneeId: null,
+                },
+              },
+            ]
+          : []
+      ) as never;
+    if (path.endsWith('/leads')) {
+      duplicate = true;
+      throw Object.assign(new Error('duplicado'), {
+        isAxiosError: true,
+        response: { status: 409, data: { message: 'Este local já está no CRM.' } },
+      });
+    }
+    return normal(path, ...args);
+  });
+  mount();
+  await userEvent.click(await screen.findByRole('button', { name: 'Buscar no Geoapify' }));
+  await userEvent.click(await screen.findByRole('button', { name: /Empresa existente/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Adicionar à prospecção' }));
+  expect(await screen.findByRole('button', { name: 'Abrir lead no CRM' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Adicionar à prospecção' })).not.toBeInTheDocument();
+  expect(vi.mocked(authApi).mock.calls.filter(([p]) => p.endsWith('/leads'))).toHaveLength(1);
 });

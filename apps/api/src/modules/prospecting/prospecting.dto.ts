@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsNumber,
+  ValidateNested,
   IsString,
   IsOptional,
   MaxLength,
@@ -55,7 +57,19 @@ export class LeadFiltersDto {
   @Max(100000)
   page = 1;
 }
+export class MapBoundsDto {
+  @ApiProperty({ type: Number }) @IsNumber() @Min(-180) @Max(180) west!: number;
+  @ApiProperty({ type: Number }) @IsNumber() @Min(-90) @Max(90) south!: number;
+  @ApiProperty({ type: Number }) @IsNumber() @Min(-180) @Max(180) east!: number;
+  @ApiProperty({ type: Number }) @IsNumber() @Min(-90) @Max(90) north!: number;
+}
 export class SearchPlacesDto {
+  @ApiProperty({ type: MapBoundsDto, required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MapBoundsDto)
+  bounds?: MapBoundsDto;
+
   @ApiProperty({ type: String, required: true, enum: [...leadSegments] })
   @IsIn(leadSegments)
   segment!: LeadSegment;

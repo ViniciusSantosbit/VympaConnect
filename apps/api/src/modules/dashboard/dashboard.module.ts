@@ -1,3 +1,5 @@
+import { FinanceModule } from '../finance/finance.module.js';
+import { ManagementService } from '../finance/management.service.js';
 import { Controller, Get, Injectable, Module, Req, Header } from '@nestjs/common';
 import type { DashboardSummary } from '@vympa/shared';
 import { statusLabels } from '@vympa/shared';
@@ -14,9 +16,12 @@ const activityLabels: Record<string, string> = {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly finance: ManagementService,
+  ) {}
 
-  async summary(profileId: string, identityId: string): Promise<DashboardSummary> {
+  async summary(profileId: string, identityId: string, role?: string): Promise<DashboardSummary> {
     const events = await this.db.adminAuditEvent.findMany({
       where: {
         action: { in: Object.keys(activityLabels) },
@@ -34,6 +39,7 @@ export class DashboardService {
       orderBy: { createdAt: 'desc' },
       take: 5,
     });
+    const financial = role === 'OWNER' ? await this.finance.summary() : null;
     // Ausência de módulos não significa faturamento zero. Os futuros domínios
     // fornecerão suas agregações aqui quando existirem tabelas e regras reais.
     return {
@@ -51,12 +57,18 @@ export class DashboardService {
         negotiations: counts.NEGOTIATING ?? 0,
         closedContracts: null,
         activeClients: null,
-        monthlyRevenue: null,
-        monthlyExpenses: null,
-        balance: null,
+        monthlyRevenue: financial ? financial.receivedCents / 100 : null,
+        monthlyExpenses: financial ? financial.paidCents / 100 : null,
+        balance: financial ? financial.balanceCents / 100 : null,
         goalProgress: null,
       },
-      finance: [],
+      finance: financial
+        ? financial.months.map((m) => ({
+            period: m.period,
+            revenue: m.incomeCents / 100,
+            expenses: m.expenseCents / 100,
+          }))
+        : [],
       commercial: [],
       funnel: Object.entries(statusLabels).map(([status, label]) => ({
         label,
@@ -97,9 +109,17 @@ export class DashboardController {
   @Get('summary')
   @Header('Cache-Control', 'no-store')
   summary(@Req() request: AuthRequest) {
-    return this.dashboard.summary(request.auth.profile!.id, request.auth.identity.id);
+    return this.dashboard.summary(
+      request.auth.profile!.id,
+      request.auth.identity.id,
+      request.auth.profile!.role,
+    );
   }
 }
 
-@Module({ controllers: [DashboardController], providers: [DashboardService] })
+@Module({
+  imports: [FinanceModule],
+  controllers: [DashboardController],
+  providers: [DashboardService],
+})
 export class DashboardModule {}

@@ -222,13 +222,41 @@ export class PlacesService {
       const state = brazilStates.find((s) => s[0] === dto.state);
       if (state && dto.region && state[2] !== dto.region)
         throw new BadRequestException('Estado não pertence à região selecionada.');
-      if (!state && !dto.city?.trim() && !dto.region)
+      if (dto.bounds) {
+        const { west, south, east, north } = dto.bounds;
+        if (
+          ![west, south, east, north].every(Number.isFinite) ||
+          west >= east ||
+          south >= north ||
+          east - west > 2 ||
+          north - south > 2 ||
+          west < -74 ||
+          east > -32 ||
+          south < -34 ||
+          north > 6
+        )
+          throw new BadRequestException(
+            'Aproxime o mapa de uma cidade brasileira para buscar nesta área (até 2° por eixo).',
+          );
+        if (dto.state || dto.city?.trim() || dto.region)
+          throw new BadRequestException(
+            'Busca por área usa os limites do mapa; não combine com cidade, estado ou região.',
+          );
+      }
+      if (!dto.bounds && !state && !dto.city?.trim() && !dto.region)
         throw new BadRequestException(
           'Escolha uma região, estado ou cidade para delimitar a busca.',
         );
       const fingerprint = createHash('sha256')
         .update(
-          JSON.stringify([dto.segment, dto.region, dto.state, dto.city?.trim(), dto.query?.trim()]),
+          JSON.stringify([
+            dto.segment,
+            dto.region,
+            dto.state,
+            dto.city?.trim(),
+            dto.query?.trim(),
+            dto.bounds,
+          ]),
         )
         .digest('hex')
         .slice(0, 16);
@@ -246,7 +274,11 @@ export class PlacesService {
         )
           throw new BadRequestException('Página inválida para estes filtros.');
       }
-      let filter = dto.region ? 'rect:' + regions[dto.region] : 'countrycode:br';
+      let filter = dto.bounds
+        ? 'rect:' + [dto.bounds.west, dto.bounds.south, dto.bounds.east, dto.bounds.north].join(',')
+        : dto.region
+          ? 'rect:' + regions[dto.region]
+          : 'countrycode:br';
       if (state || dto.city?.trim()) {
         const geocode = await this.call(profileId, '/v1/geocode/search', {
           text: [dto.city?.trim(), state?.[1], 'Brasil'].filter(Boolean).join(', '),
