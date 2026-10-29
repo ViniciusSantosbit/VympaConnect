@@ -60,10 +60,41 @@ model AdminProfile {
   goalUpdates GoalManualUpdate[]
   goalActivities GoalActivity[]
   goalSnapshots GoalProgressSnapshot[]
+  aiConversations AiConversation[]
 
   @@index([active, role])
   @@map("admin_profiles")
   @@schema("vympa_private")
+}
+
+model AiConversation {
+ id String @id @default(uuid()) @db.Uuid
+ profileId String @db.Uuid
+ profile AdminProfile @relation(fields:[profileId],references:[id],onDelete:Restrict)
+ role AdminRole
+ title String @db.VarChar(120)
+ messages AiMessage[]
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ updatedAt DateTime @updatedAt @db.Timestamptz(3)
+ @@index([profileId,role,updatedAt])
+ @@map("ai_conversations")
+ @@schema("vympa_private")
+}
+model AiMessage {
+ id String @id @default(uuid()) @db.Uuid
+ conversationId String @db.Uuid
+ conversation AiConversation @relation(fields:[conversationId],references:[id],onDelete:Restrict)
+ requestKey String @unique @db.Uuid
+ question String @db.VarChar(2000)
+ answer String? @db.VarChar(12000)
+ status String @default("PENDING") @db.VarChar(15)
+ sources Json?
+ errorCode String? @db.VarChar(30)
+ createdAt DateTime @default(now()) @db.Timestamptz(3)
+ completedAt DateTime? @db.Timestamptz(3)
+ @@index([conversationId,createdAt])
+ @@map("ai_messages")
+ @@schema("vympa_private")
 }
 
 model Goal {

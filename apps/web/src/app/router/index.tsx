@@ -1,4 +1,5 @@
 import { FinanceHome } from '@/features/finance/FinanceHome';
+import { AiPage } from '@/features/ai/AiPage';
 import { GoalsPage, GoalList, GoalDetails } from '@/features/goals/GoalsPage';
 import { GoalAnalyticsPage, GoalTeamPage } from '@/features/goals/GoalAnalyticsPage';
 import { ClientsPage, ClientDetails } from '@/features/clients/ClientsPage';
@@ -90,6 +91,7 @@ export const router = createBrowserRouter([
             ),
           },
           { path: '/finance', element: <FinanceHome /> },
+          { path: '/ai', element: <AiPage /> },
           { path: '/goals', element: <GoalsPage /> },
           { path: '/goals/commercial', element: <GoalList category="COMMERCIAL" /> },
           { path: '/goals/team', element: <GoalTeamPage /> },
@@ -119,6 +121,7 @@ export const router = createBrowserRouter([
                   'clients',
                   'contracts',
                   'goals',
+                  'ai',
                 ].includes(path),
             )
             .map(([path, label]) => ({ path, element: <ModulePlaceholder label={label} /> })),

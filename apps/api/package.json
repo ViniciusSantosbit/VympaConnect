@@ -31,6 +31,7 @@
     "test:audit:finance": "node scripts/audit-prospecting.mjs --finance"
   },
   "dependencies": {
+    "@google/genai": "2.32.0",
     "@nestjs/common": "12.2.0",
     "@nestjs/config": "12.0.1",
     "@nestjs/core": "12.2.0",

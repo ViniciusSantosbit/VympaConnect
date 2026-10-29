@@ -148,5 +148,9 @@ export class ProspectingController {
     return this.leads.completeFollowUp(id, followUpId, r.auth.profile!.id);
   }
 }
-@Module({ controllers: [ProspectingController], providers: [ProspectingService, PlacesService] })
+@Module({
+  controllers: [ProspectingController],
+  providers: [ProspectingService, PlacesService],
+  exports: [ProspectingService],
+})
 export class ProspectingModule {}

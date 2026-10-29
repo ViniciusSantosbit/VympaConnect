@@ -1,6 +1,7 @@
 import { FinanceModule } from './modules/finance/finance.module.js';
 import { ClientsModule } from './modules/clients/clients.module.js';
 import { GoalsModule } from './modules/goals/goals.module.js';
+import { AiModule } from './modules/ai/ai.module.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -58,6 +59,7 @@ import { ProspectingModule } from './modules/prospecting/prospecting.module.js';
     FinanceModule,
     ClientsModule,
     GoalsModule,
+    AiModule,
     AuthModule,
     AdminUsersModule,
   ],

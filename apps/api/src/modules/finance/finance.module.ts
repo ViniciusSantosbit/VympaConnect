@@ -213,6 +213,6 @@ export class ManagementController {
 @Module({
   controllers: [SimulatorController, ManagementController],
   providers: [SimulatorService, ManagementService],
-  exports: [ManagementService],
+  exports: [ManagementService, SimulatorService],
 })
 export class FinanceModule {}

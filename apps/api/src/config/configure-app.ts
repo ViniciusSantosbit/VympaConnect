@@ -20,7 +20,7 @@ export function configureApp(app: INestApplication) {
       next: import('express').NextFunction,
     ) => {
       if (
-        /^\/api\/v1\/(auth|admin|prospecting|dashboard|finance|clients|contracts|goals)(\/|$)/.test(
+        /^\/api\/v1\/(auth|admin|prospecting|dashboard|finance|clients|contracts|goals|ai)(\/|$)/.test(
           request.path,
         )
       )
