@@ -22,6 +22,7 @@ export async function authApi<T = Record<string, unknown>>(
   data?: unknown,
   retryCsrf = true,
   timeout = 10_000,
+  signal?: AbortSignal,
 ): Promise<T> {
   if (method !== 'GET' && !csrf) await initializeCsrf();
   try {
@@ -30,6 +31,7 @@ export async function authApi<T = Record<string, unknown>>(
       method,
       data,
       timeout,
+      signal,
       headers: method === 'GET' ? {} : { 'X-CSRF-Token': csrf },
     });
     if (response.data?.csrfToken) csrf = response.data.csrfToken;
@@ -43,7 +45,7 @@ export async function authApi<T = Record<string, unknown>>(
       error.response.data.message.startsWith('CSRF inválido')
     ) {
       await initializeCsrf();
-      return authApi<T>(path, method, data, false, timeout);
+      return authApi<T>(path, method, data, false, timeout, signal);
     }
     if (
       axios.isAxiosError(error) &&

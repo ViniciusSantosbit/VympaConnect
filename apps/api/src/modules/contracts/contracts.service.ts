@@ -92,6 +92,16 @@ export class ContractsService {
               : {}),
           }),
       clientId: q.clientId,
+      ...(q.expiresIn
+        ? {
+            endsOn: {
+              gte: validDate(q.expiresIn + '-01'),
+              lt: new Date(
+                Date.UTC(Number(q.expiresIn.slice(0, 4)), Number(q.expiresIn.slice(5, 7)), 1),
+              ),
+            },
+          }
+        : {}),
       client: q.segment ? { segment: q.segment } : undefined,
       AND: [
         ...(role === 'OWNER'

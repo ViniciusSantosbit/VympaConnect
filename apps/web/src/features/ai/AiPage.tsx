@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import axios from 'axios';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { X, Bot, MessageSquarePlus, Send, LoaderCircle, ShieldCheck, Sparkles } 
 import { authApi, authMessage } from '@/features/auth/auth-api';
 import { Button } from '@/components/ui/button';
 import { PageHeader, LoadingState } from '@/components/shared/DashboardComponents';
+import { AiResponse, AiThinking } from './AiResponse';
 import './ai.css';
 type Status = {
   ready: boolean;
@@ -13,11 +14,13 @@ type Status = {
   configured: boolean;
   model: string | null;
   reason: string | null;
+  pending?: { conversationId: string; createdAt: string } | null;
 };
 type Conversation = { id: string; title: string; updatedAt: string };
 type Source = { label: string; path: string };
 type Message = {
   id: string;
+  requestKey?: string;
   question: string;
   answer: string | null;
   status: string;
@@ -53,6 +56,11 @@ function errorMessage(e: unknown) {
 export function AiPage() {
   const qc = useQueryClient(),
     input = useRef<HTMLTextAreaElement>(null),
+    sendLock = useRef(false),
+    scrollArea = useRef<HTMLDivElement>(null),
+    follow = useRef(true),
+    controller = useRef<AbortController | null>(null),
+    [pending, setPending] = useState<{ question: string; requestKey: string } | null>(null),
     [selected, setSelected] = useState<string | null>(null),
     [question, setQuestion] = useState(''),
     [busy, setBusy] = useState(false),
@@ -63,7 +71,7 @@ export function AiPage() {
     queryKey: ['ai', 'status'],
     queryFn: () => authApi<Status>('/ai/status'),
     retry: false,
-    refetchInterval: (q) => (q.state.data && !q.state.data.ready ? 5000 : false),
+    refetchInterval: (q) => (q.state.data?.pending || busy ? 2000 : 30000),
   });
   const list = useQuery({
     queryKey: ['ai', 'conversations', listPage],
@@ -82,8 +90,16 @@ export function AiPage() {
     refetchInterval: (q) =>
       q.state.data?.items.some((m) => m.status === 'PENDING') ? 5000 : false,
   });
+  const processing =
+    busy || !!state.data?.pending || !!messages.data?.items.some((m) => m.status === 'PENDING');
+  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => {
+    if (follow.current && scrollArea.current)
+      scrollArea.current.scrollTop = scrollArea.current.scrollHeight;
+  }, [messages.data, pending, selected]);
   function choose(id: string | null) {
     if (busy) return;
+    follow.current = true;
     setSelected(id);
     setMessagePage(1);
     setQuestion('');
@@ -111,7 +127,12 @@ export function AiPage() {
   }
   async function send() {
     const text = question.trim();
-    if (busy || !state.data?.ready || text.length < 2) return;
+    if (sendLock.current || processing || !state.data?.ready || text.length < 2) return;
+    sendLock.current = true;
+    controller.current = new AbortController();
+    const requestKey = crypto.randomUUID();
+    setPending({ question: text, requestKey });
+    follow.current = true;
     setBusy(true);
     setError('');
     let id = selected;
@@ -127,20 +148,31 @@ export function AiPage() {
       await authApi<Message>(
         '/ai/conversations/' + id + '/messages',
         'POST',
-        { question: text, requestKey: crypto.randomUUID() },
+        { question: text, requestKey },
         true,
         65000,
+        controller.current.signal,
       );
       setQuestion('');
       setMessagePage(1);
     } catch (e) {
-      setError(errorMessage(e));
+      setError(
+        axios.isCancel(e)
+          ? 'Espera interrompida. A resposta poderá aparecer no histórico.'
+          : errorMessage(e),
+      );
     } finally {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['ai', 'messages', id] }),
-        qc.invalidateQueries({ queryKey: ['ai', 'conversations'] }),
-      ]);
-      setBusy(false);
+      try {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ['ai', 'messages', id] }),
+          qc.invalidateQueries({ queryKey: ['ai', 'conversations'] }),
+          qc.invalidateQueries({ queryKey: ['ai', 'status'] }),
+        ]);
+      } finally {
+        setPending(null);
+        sendLock.current = false;
+        setBusy(false);
+      }
     }
   }
   return (
@@ -181,6 +213,22 @@ export function AiPage() {
           <Button variant="outline" onClick={() => void state.refetch()}>
             Verificar configuração
           </Button>
+        </div>
+      )}
+      {state.data?.pending && !busy && (
+        <div className="ai-configuration" role="status">
+          <p>
+            Uma pergunta ainda está sendo processada. Aguarde a conclusão antes de enviar outra.
+          </p>
+          {state.data.pending.conversationId !== selected && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => choose(state.data!.pending!.conversationId)}
+            >
+              Abrir conversa em processamento
+            </Button>
+          )}
         </div>
       )}
       <div className="ai-workspace">
@@ -252,8 +300,17 @@ export function AiPage() {
               </span>
             </div>
           </div>
-          <div className="ai-messages" aria-live="polite" aria-busy={busy}>
-            {!selected && (
+          <div
+            className="ai-messages"
+            ref={scrollArea}
+            onScroll={() => {
+              const el = scrollArea.current;
+              if (el) follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 70;
+            }}
+            aria-live="polite"
+            aria-busy={!!pending}
+          >
+            {!selected && !pending && (
               <div className="ai-welcome">
                 <span className="ai-welcome-icon">
                   <Sparkles size={28} />
@@ -267,7 +324,7 @@ export function AiPage() {
                   {suggestions.map((s) => (
                     <button
                       key={s}
-                      disabled={busy || !state.data?.ready}
+                      disabled={processing || !state.data?.ready}
                       onClick={() => {
                         setQuestion(s);
                         input.current?.focus();
@@ -284,7 +341,7 @@ export function AiPage() {
               </div>
             )}
             {selected &&
-              (messages.isPending ? (
+              (messages.isPending && !pending ? (
                 <LoadingState />
               ) : messages.isError ? (
                 <p role="alert" className="ai-error">
@@ -292,7 +349,7 @@ export function AiPage() {
                 </p>
               ) : (
                 <>
-                  {messages.data.items.map((m) => (
+                  {messages.data?.items.map((m) => (
                     <article className="ai-exchange" key={m.id}>
                       <div className="ai-question">
                         <span>Você</span>
@@ -307,7 +364,7 @@ export function AiPage() {
                         </span>
                         {m.status === 'COMPLETED' ? (
                           <>
-                            <p>{m.answer}</p>
+                            <AiResponse text={m.answer ?? ''} />
                             {!!m.sources?.length && (
                               <nav aria-label="Fontes consultadas">
                                 {m.sources
@@ -330,9 +387,7 @@ export function AiPage() {
                             )}
                           </>
                         ) : m.status === 'PENDING' ? (
-                          <p>
-                            <LoaderCircle className="spin" size={15} /> Preparando resposta…
-                          </p>
+                          <AiThinking />
                         ) : (
                           <p className="ai-failed">
                             Não foi possível concluir esta resposta. Você pode enviar uma nova
@@ -342,10 +397,10 @@ export function AiPage() {
                       </div>
                     </article>
                   ))}
-                  {!messages.data.items.length && !busy && (
+                  {!messages.data?.items.length && !busy && (
                     <p className="ai-empty">Esta conversa ainda não tem perguntas.</p>
                   )}
-                  {messages.data.total > 20 && (
+                  {(messages.data?.total ?? 0) > 20 && (
                     <div className="ai-pagination">
                       <Button
                         variant="outline"
@@ -357,7 +412,7 @@ export function AiPage() {
                       <span>Página {messagePage}</span>
                       <Button
                         variant="outline"
-                        disabled={messagePage * 20 >= messages.data.total || busy}
+                        disabled={messagePage * 20 >= (messages.data?.total ?? 0) || busy}
                         onClick={() => setMessagePage(messagePage + 1)}
                       >
                         Mais antigas
@@ -366,10 +421,19 @@ export function AiPage() {
                   )}
                 </>
               ))}
-            {busy && (
-              <p className="ai-thinking" role="status">
-                <LoaderCircle className="spin" size={16} /> Consultando as informações autorizadas…
-              </p>
+            {pending && !messages.data?.items.some((m) => m.requestKey === pending.requestKey) && (
+              <article className="ai-exchange" data-testid="optimistic-exchange">
+                <div className="ai-question">
+                  <span>Você</span>
+                  <p>{pending.question}</p>
+                </div>
+                <div className="ai-answer">
+                  <span>
+                    <Bot size={15} /> VYMPAI
+                  </span>
+                  <AiThinking />
+                </div>
+              </article>
             )}
           </div>
           <form
@@ -390,7 +454,7 @@ export function AiPage() {
               }
               value={question}
               maxLength={2000}
-              disabled={busy || !state.data?.ready}
+              disabled={processing || !state.data?.ready}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -403,12 +467,17 @@ export function AiPage() {
               <span>{question.length}/2000 · Enter envia; Shift+Enter quebra linha</span>
               <Button
                 type="submit"
-                disabled={busy || !state.data?.ready || question.trim().length < 2}
+                disabled={processing || !state.data?.ready || question.trim().length < 2}
               >
                 {busy ? <LoaderCircle className="spin" size={16} /> : <Send size={16} />} Enviar
                 pergunta
               </Button>
             </div>
+            {pending && (
+              <Button type="button" variant="outline" onClick={() => controller.current?.abort()}>
+                Parar espera
+              </Button>
+            )}
             {error && (
               <p role="alert" className="ai-error">
                 {error}

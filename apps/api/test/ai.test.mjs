@@ -23,6 +23,7 @@ function persistence(previous = null) {
   const records = new Map(previous ? [[previous.requestKey, previous]] : []);
   const db = {
     $executeRaw: jest.fn(async () => 0),
+    adminAuditEvent: { count: jest.fn(async () => 0), create: jest.fn(async () => ({})) },
     aiConversation: {
       findFirst: jest.fn(async ({ where }) =>
         where.profileId === actor.id && where.role === actor.role ? { id: 'conversation' } : null,
@@ -198,7 +199,7 @@ describe('Chat, custo e isolamento (SDK simulado, sem rede)', () => {
   });
   it('limite por usuário impede chamar o provedor', async () => {
     const db = persistence();
-    db.aiMessage.count.mockResolvedValueOnce(0).mockResolvedValue(6);
+    db.adminAuditEvent.count.mockResolvedValue(6);
     db.$transaction = (fn) => fn(db);
     const generate = jest.fn();
     await expect(

@@ -7,6 +7,7 @@ import request from 'supertest';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from '../dist/app.module.js';
 import { configureApp } from '../dist/config/configure-app.js';
+import { GeminiService } from '../dist/modules/ai/gemini.service.js';
 import { DatabaseService } from '../dist/database/database.service.js';
 import { SupabaseIdentityService } from '../dist/modules/auth/supabase-identity.service.js';
 
@@ -139,7 +140,52 @@ beforeEach(async () => {
   db.$transaction = jest.fn(async (value) =>
     typeof value === 'function' ? value(db) : Promise.all(value),
   );
+  db.$executeRaw = jest.fn(async () => 0);
+  db.adminAuditEvent.count = jest.fn(async () => 0);
+  const conversations = new Map(),
+    messages = new Map();
+  db.aiConversation = {
+    create: jest.fn(async ({ data }) => {
+      const c = { ...data, id: profileId, updatedAt: new Date() };
+      conversations.set(c.id, c);
+      return c;
+    }),
+    findFirst: jest.fn(async ({ where }) => {
+      const c = conversations.get(where.id);
+      return c?.profileId === where.profileId && c?.role === where.role ? c : null;
+    }),
+    findMany: jest.fn(async () =>
+      [...conversations.values()].filter(
+        (c) => c.profileId === profile.id && c.role === profile.role,
+      ),
+    ),
+    count: jest.fn(async () => conversations.size),
+    update: jest.fn(async () => ({})),
+    delete: jest.fn(async ({ where }) => conversations.delete(where.id)),
+  };
+  db.aiMessage = {
+    findFirst: jest.fn(async () => null),
+    count: jest.fn(async () => 0),
+    findMany: jest.fn(async () => [...messages.values()]),
+    findUnique: jest.fn(async () => null),
+    create: jest.fn(async ({ data }) => {
+      const m = { ...data, id: ownerId, status: 'PENDING', createdAt: new Date() };
+      messages.set(m.id, m);
+      return m;
+    }),
+    update: jest.fn(async ({ where, data }) => Object.assign(messages.get(where.id), data)),
+    updateMany: jest.fn(async () => ({ count: 0 })),
+    deleteMany: jest.fn(async () => {
+      messages.clear();
+      return { count: 1 };
+    }),
+  };
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(GeminiService)
+    .useValue({
+      status: () => ({ ready: true, model: 'gemini-3.5-flash-lite' }),
+      generate: jest.fn(async () => ({ text: 'Resposta de fixture.', functionCalls: [] })),
+    })
     .overrideProvider(DatabaseService)
     .useValue(db)
     .overrideProvider(SupabaseIdentityService)
@@ -575,4 +621,109 @@ it('falha de banco no CRM retorna erro seguro sem dados de conexão', async () =
   );
   const response = await agent.get('/api/v1/prospecting/leads').expect(500);
   expect(JSON.stringify(response.body)).not.toMatch(/sensitive|private-host|postgresql|stack/);
+});
+
+// Nenhuma chamada Google real: apenas guards reais + banco/identidade/provedor simulados.
+describe('VYMPAI HTTP: sessão, MFA, CSRF e isolamento', () => {
+  const path = '/api/v1/ai/conversations';
+  it('nega IA anônima, sem MFA e com perfil inativo', async () => {
+    await agent.get('/api/v1/ai/status').expect(401);
+    identity.aal = 'aal1';
+    await login();
+    await agent.get(path).expect(403);
+    identity.aal = 'aal2';
+    profile.active = false;
+    await agent.get(path).expect(403);
+  });
+  it('exige CSRF e Origin para criar/excluir/enviar', async () => {
+    await login();
+    await agent.post(path).send({ title: 'Fixture' }).expect(403);
+    await agent.delete(path + '/' + profileId).expect(403);
+    await agent
+      .post(path + '/' + profileId + '/messages')
+      .send({ question: 'Teste', requestKey: ownerId })
+      .expect(403);
+    await agent
+      .post(path)
+      .set('Origin', 'https://evil.invalid')
+      .set('X-CSRF-Token', csrf)
+      .send({})
+      .expect(403);
+  });
+  it('persiste histórico via HTTP, recarrega e exclui com autorização', async () => {
+    await login();
+    const c = await agent
+      .post(path)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ title: 'Fixture' })
+      .expect(201);
+    const response = await agent
+      .post(path + '/' + c.body.id + '/messages')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ question: 'Olá', requestKey: ownerId })
+      .expect(201);
+    expect(response.body.answer).toBe('Resposta de fixture.');
+    expect(
+      (await agent.get(path + '/' + c.body.id + '/messages').expect(200)).body.items,
+    ).toHaveLength(1);
+    await agent
+      .delete(path + '/' + c.body.id)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .expect(200);
+    await agent.get(path + '/' + c.body.id + '/messages').expect(404);
+  });
+  it('bloqueia leitura e exclusão após troca de perfil', async () => {
+    await login();
+    await agent
+      .post(path)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({})
+      .expect(201);
+    profile.role = 'ADMIN';
+    await agent.get(path + '/' + profileId + '/messages').expect(404);
+    await agent
+      .delete(path + '/' + profileId)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .expect(404);
+  });
+  it('rejeita campos extras, IDs inválidos e perguntas vazias antes do SDK', async () => {
+    await login();
+    await agent.get(path + '/invalido/messages').expect(400);
+    await agent
+      .post(path)
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ role: 'OWNER' })
+      .expect(400);
+    await agent
+      .post(path + '/' + profileId + '/messages')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .set('X-CSRF-Token', csrf)
+      .send({ question: ' ', requestKey: ownerId })
+      .expect(400);
+  });
+});
+
+it('estado de processamento da IA é consultado somente no perfil e papel autenticados', async () => {
+  await login();
+  db.aiMessage.findFirst.mockResolvedValueOnce({
+    conversationId: profileId,
+    createdAt: new Date(),
+  });
+  const r = await agent.get('/api/v1/ai/status').expect(200);
+  expect(r.body.pending.conversationId).toBe(profileId);
+  expect(db.aiMessage.findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({
+        conversation: { profileId, role: 'OWNER' },
+        status: 'PENDING',
+      }),
+      select: { conversationId: true, createdAt: true },
+    }),
+  );
 });

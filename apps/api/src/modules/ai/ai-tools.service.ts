@@ -63,7 +63,7 @@ const descriptions = {
     'Consultar leads próprios do CRM e próximas ações. Sem busca externa nem alteração de status.',
   consult_clients: 'Consultar empresas e status do relacionamento autorizados.',
   consult_contracts:
-    'Consultar contratos autorizados. period YYYY-MM filtra o vencimento dentro da página consultada; pagine quando necessário.',
+    'Consultar contratos autorizados. period YYYY-MM filtra vencimentos no mês antes da paginação.',
   consult_finance:
     'OWNER: consultar caixa recebido, despesas, saldo e previsões do mês. Não confundir previsto com recebido.',
   consult_proposals:
@@ -181,7 +181,12 @@ export class AiToolsService {
         const r = q.id
           ? { items: [await this.contracts.get(q.id, actor.id, actor.role)], total: 1 }
           : await this.contracts.list(
-              { page: Math.floor((q.page - 1) / 3) + 1, days: 30, status: q.status },
+              {
+                page: Math.floor((q.page - 1) / 3) + 1,
+                days: 30,
+                status: q.status,
+                expiresIn: q.period,
+              },
               actor.id,
               actor.role,
             );
@@ -210,8 +215,7 @@ export class AiToolsService {
           ...(q.period
             ? {
                 items: view.items.filter((c) => c.endsOn?.toISOString().slice(0, 7) === q.period),
-                filterNote:
-                  'Filtro de vencimento aplicado nesta página; não conclua ausência global sem verificar as próximas páginas.',
+                period: q.period,
               }
             : {}),
         };
@@ -236,7 +240,10 @@ export class AiToolsService {
         const q = schemas.consult_proposals.parse(args ?? {});
         const rows = q.id
           ? [await this.proposals.get(q.id)]
-          : await this.proposals.list(Math.floor((q.page - 1) / 3) + 1);
+          : await this.proposals.list(
+              Math.floor((q.page - 1) / 3) + 1,
+              actor.role === 'ADMIN' ? actor.id : undefined,
+            );
         const allowed = rows.filter((p) => actor.role === 'OWNER' || p.responsibleId === actor.id);
         if (q.id && !allowed.length) throw new ForbiddenException('Proposta não autorizada.');
         const view = paging(

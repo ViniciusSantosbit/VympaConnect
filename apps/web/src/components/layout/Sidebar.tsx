@@ -76,7 +76,6 @@ export function Sidebar({
               >
                 <Icon size={19} strokeWidth={1.6} />
                 <span className="sidebar-copy">{label}</span>
-                {path === 'ai' && <span className="nav-soon sidebar-copy">EM BREVE</span>}
               </NavLink>
             );
           })}

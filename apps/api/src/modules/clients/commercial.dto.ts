@@ -90,6 +90,7 @@ export class CommercialFiltersDto {
   @Optional() @IsIn([...clientStatuses, ...contractStatuses]) status?: string;
   @Optional() @IsUUID() clientId?: string;
   @Optional() @IsUUID() responsibleId?: string;
+  @Optional() @Matches(/^20\d{2}-(0[1-9]|1[0-2])$/) expiresIn?: string;
   @Type(() => Number) @IsInt() @IsIn([7, 15, 30]) days = 30;
 }
 export class ClientDto {

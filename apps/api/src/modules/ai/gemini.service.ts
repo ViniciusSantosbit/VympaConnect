@@ -1,16 +1,18 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import {
   GoogleGenAI,
   FunctionCallingConfigMode,
+  ThinkingLevel,
   type Content,
   type FunctionDeclaration,
 } from '@google/genai';
 @Injectable()
 export class GeminiService {
+  private readonly logger = new Logger(GeminiService.name);
   status() {
     const enabled = process.env.AI_ENABLED === 'true',
       configured = !!process.env.GEMINI_API_KEY?.trim(),
-      model = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest',
+      model = process.env.GEMINI_MODEL?.trim() || '',
       valid = /^gemini-[a-zA-Z0-9._-]{1,90}$/.test(model);
     return {
       enabled,
@@ -38,12 +40,15 @@ export class GeminiService {
       vertexai: false,
       httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } },
     });
-    return client.models.generateContent({
+    const response = await client.models.generateContent({
       model: state.model!,
       contents,
       config: {
         systemInstruction: system,
         maxOutputTokens: 2048,
+        ...(state.model === 'gemini-3.5-flash-lite'
+          ? { thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } }
+          : {}),
         abortSignal: AbortSignal.timeout(27000),
         ...(tools.length ? { tools: [{ functionDeclarations: tools }] } : {}),
         toolConfig: {
@@ -53,5 +58,15 @@ export class GeminiService {
         },
       },
     });
+    const finish = response.candidates?.[0]?.finishReason;
+    this.logger.log({
+      event: 'ai_provider_result',
+      phase: final ? 'final' : 'initial',
+      finish: typeof finish === 'string' && /^[A-Z_]{1,50}$/.test(finish) ? finish : null,
+      inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
+      outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+      thoughtTokens: response.usageMetadata?.thoughtsTokenCount ?? 0,
+    });
+    return response;
   }
 }

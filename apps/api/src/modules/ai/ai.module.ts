@@ -61,8 +61,8 @@ export class AiController {
     private readonly ai: AiService,
     private readonly gemini: GeminiService,
   ) {}
-  @Get('status') @Header('Cache-Control', 'no-store') status() {
-    return this.gemini.status();
+  @Get('status') @Header('Cache-Control', 'no-store') async status(@Req() r: AuthRequest) {
+    return { ...this.gemini.status(), pending: await this.ai.activity(actor(r)) };
   }
   @Get('conversations') @Header('Cache-Control', 'no-store') list(
     @Query() q: PageDto,

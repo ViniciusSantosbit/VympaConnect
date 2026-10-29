@@ -6,6 +6,27 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 describe('Transporte da sessão e CSRF', () => {
+  it('preserva cancelamento e timeout no retry de CSRF, sem repetir erro de rede', async () => {
+    http.get.mockResolvedValue({ data: { csrfToken: 'a'.repeat(64) } });
+    http.request
+      .mockRejectedValueOnce({
+        isAxiosError: true,
+        response: { status: 403, data: { message: 'CSRF inválido.' } },
+      })
+      .mockResolvedValueOnce({ data: { ok: true } });
+    const { authApi } = await import('./auth-api');
+    const controller = new AbortController();
+    await authApi('/ai/conversations/chat/messages', 'POST', {}, true, 65000, controller.signal);
+    expect(
+      http.request.mock.calls.every(
+        ([options]) => options.signal === controller.signal && options.timeout === 65000,
+      ),
+    ).toBe(true);
+    http.request.mockClear();
+    http.request.mockRejectedValueOnce({ isAxiosError: true, code: 'ERR_CANCELED' });
+    await expect(authApi('/ai/conversations/chat/messages', 'POST')).rejects.toBeDefined();
+    expect(http.request).toHaveBeenCalledTimes(1);
+  });
   it('atualiza CSRF e repete uma vez somente quando o servidor rejeitou antes da operação', async () => {
     http.get
       .mockResolvedValueOnce({ data: { csrfToken: 'a'.repeat(64) } })

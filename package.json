@@ -47,7 +47,8 @@
     "test:audit:goals": "npm run test:audit:goals -w @vympa/api",
     "test:audit:clients-contracts": "npm run test:audit:clients-contracts -w @vympa/api",
     "test:audit:prospecting": "npm run test:audit:prospecting -w @vympa/api --",
-    "test:audit:finance": "npm run test:audit:prospecting -- --finance"
+    "test:audit:finance": "npm run test:audit:prospecting -- --finance",
+    "test:integration:ai": "npm run test:integration:ai -w @vympa/api"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

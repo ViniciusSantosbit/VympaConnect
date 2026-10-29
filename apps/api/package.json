@@ -28,7 +28,8 @@
     "test:audit:goals": "node scripts/audit-prospecting.mjs --clients-contracts --goals",
     "test:audit:clients-contracts": "node scripts/audit-prospecting.mjs --finance --clients-contracts",
     "test:audit:prospecting": "node scripts/audit-prospecting.mjs",
-    "test:audit:finance": "node scripts/audit-prospecting.mjs --finance"
+    "test:audit:finance": "node scripts/audit-prospecting.mjs --finance",
+    "test:integration:ai": "node scripts/test-ai-database.mjs"
   },
   "dependencies": {
     "@google/genai": "2.32.0",

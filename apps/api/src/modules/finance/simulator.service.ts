@@ -109,9 +109,10 @@ export class SimulatorService {
       manualException: manual,
     };
   }
-  list(page = 1) {
+  list(page = 1, responsibleId?: string) {
     return this.db.proposal.findMany({
-      orderBy: { updatedAt: 'desc' },
+      where: responsibleId ? { responsibleId } : undefined,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       skip: (page - 1) * 30,
       take: 30,
       include: { responsible: { select: { id: true, email: true } } },
