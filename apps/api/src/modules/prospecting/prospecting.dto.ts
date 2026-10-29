@@ -10,7 +10,6 @@ import {
   IsInt,
   Min,
   Max,
-  IsNumber,
   Matches,
   MinLength,
 } from 'class-validator';
@@ -78,12 +77,6 @@ export class SearchPlacesDto {
   @IsString()
   @MaxLength(120)
   query?: string;
-  @ApiProperty({ type: Number, required: false })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(5)
-  minRating?: number;
   @ApiProperty({ type: String, required: false })
   @IsOptional()
   @IsString()
@@ -93,7 +86,7 @@ export class SearchPlacesDto {
 export class CreateLeadDto {
   @ApiProperty({ type: String, required: false })
   @IsOptional()
-  @Matches(/^[A-Za-z0-9_-]{5,255}$/)
+  @Matches(/^[A-Za-z0-9_-]{5,2048}$/)
   placeId?: string;
   @ApiProperty({ type: String, required: false })
   @IsOptional()

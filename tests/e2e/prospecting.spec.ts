@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 // Transporte simulado exclusivamente neste teste. Nenhum dado operacional é criado.
-test('CRM: cadastro, Kanban, persistência por recarga e layout sem chave Google', async ({
+test('CRM: cadastro, Kanban, persistência por recarga e layout sem chave Geoapify', async ({
   page,
 }, testInfo) => {
   let status = 'NOT_CONTACTED';
@@ -91,7 +91,7 @@ test('CRM: cadastro, Kanban, persistência por recarga e layout sem chave Google
   await expect(page.getByText('Nenhum lead cadastrado')).toBeVisible();
   const filterToggle = page.getByRole('button', { name: 'Filtros', exact: true });
   if (await filterToggle.isVisible()) await filterToggle.click();
-  await expect(page.getByRole('button', { name: 'Buscar no Google' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Buscar no Geoapify' })).toBeDisabled();
   if (await filterToggle.isVisible()) await filterToggle.click();
   await page.getByRole('button', { name: 'Novo lead' }).click();
   await page.getByLabel('Nome da empresa').fill('Fixture CRM isolada');

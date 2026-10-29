@@ -404,7 +404,7 @@ describe('Prospecting security', () => {
   it('permite ADMIN e bloqueia busca sem chave e autoridade injetada', async () => {
     profile.role = 'ADMIN';
     await login();
-    process.env.GOOGLE_PLACES_ENABLED = 'false';
+    process.env.GEOAPIFY_PLACES_ENABLED = 'false';
     await agent.get('/api/v1/prospecting/usage').expect(200);
     await agent
       .post('/api/v1/prospecting/places/search')

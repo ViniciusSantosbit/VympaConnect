@@ -1,14 +1,22 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import {
-  PlacesService,
-  SEARCH_MASK,
-  DETAILS_MASK,
-} from '../dist/modules/prospecting/places.service.js';
+import { PlacesService, categories } from '../dist/modules/prospecting/places.service.js';
 let previous, db, service, fetchMock;
+const feature = {
+  properties: {
+    place_id: '51abcdef1234',
+    name: 'Escritório de teste',
+    formatted: 'Brasília, DF',
+    lat: -15.79,
+    lon: -47.88,
+    country_code: 'br',
+    state: 'Distrito Federal',
+    state_code: 'DF',
+  },
+};
 beforeEach(() => {
   previous = { ...process.env };
-  process.env.GOOGLE_PLACES_ENABLED = 'true';
-  process.env.GOOGLE_PLACES_API_KEY = 'test-only-key';
+  process.env.GEOAPIFY_PLACES_ENABLED = 'true';
+  process.env.GEOAPIFY_API_KEY = 'test-server-key';
   const tx = {
     $executeRaw: jest.fn(async () => 0),
     placesUsage: {
@@ -26,78 +34,113 @@ beforeEach(() => {
   service = new PlacesService(db);
   fetchMock = jest
     .spyOn(globalThis, 'fetch')
-    .mockImplementation(async () => Response.json({ places: [], nextPageToken: 'next-test' }));
+    .mockImplementation(async () => Response.json({ features: [feature] }));
 });
 afterEach(() => {
   process.env = previous;
   jest.restoreAllMocks();
 });
-describe('Google Places official transport', () => {
-  it('nao consulta Google sem chave ou habilitacao', async () => {
-    delete process.env.GOOGLE_PLACES_API_KEY;
-    await expect(service.search({ segment: 'ADVOCACIA' }, 'profile')).rejects.toThrow('pendente');
+describe('Geoapify official transport', () => {
+  it('não consulta sem configuração nem consulta Google como fallback', async () => {
+    delete process.env.GEOAPIFY_API_KEY;
+    await expect(service.search({ segment: 'ADVOCACIA', state: 'DF' }, 'profile')).rejects.toThrow(
+      'pendente',
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it('usa Text Search New, mascara basica e paginacao sem telefone ou rating', async () => {
-    const r = await service.search(
-      { segment: 'ADVOCACIA', state: 'DF', city: 'Brasília', minRating: 4, pageToken: 'test-page' },
-      'profile',
-    );
-    expect(r.nextPageToken).toBe('next-test');
-    const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://places.googleapis.com/v1/places:searchText');
-    expect(options.headers['X-Goog-FieldMask']).toBe(SEARCH_MASK);
-    expect(SEARCH_MASK).not.toMatch(/rating|Phone|website|\*/);
-    expect(JSON.parse(options.body)).toMatchObject({
-      includedType: 'lawyer',
-      pageSize: 20,
-      pageToken: 'test-page',
-      minRating: 4,
+  it.each(Object.entries(categories))(
+    'usa categoria %s, Brasil e até 20 resultados',
+    async (segment, category) => {
+      const result = await service.search({ segment, state: 'DF', query: 'Nome' }, 'profile');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const geo = new URL(fetchMock.mock.calls[0][0]);
+      expect(geo.origin).toBe('https://api.geoapify.com');
+      expect(geo.pathname).toBe('/v1/geocode/search');
+      const url = new URL(fetchMock.mock.calls[1][0]);
+      expect(url.pathname).toBe('/v2/places');
+      expect(url.searchParams.get('categories')).toBe(category);
+      expect(url.searchParams.get('filter')).toBe('place:51abcdef1234');
+      expect(url.searchParams.get('limit')).toBe('20');
+      expect(url.searchParams.get('name')).toBe('Nome');
+      expect(JSON.stringify(result)).not.toContain('test-server-key');
+      expect(result.places[0].id).toBe('geoapify_51abcdef1234');
+      expect(db.tx.placesUsage.upsert).toHaveBeenCalledTimes(2);
+    },
+  );
+  it('não busca todo o Brasil sem localização e recusa estado incompatível', async () => {
+    await expect(service.search({ segment: 'ADVOCACIA' }, 'p')).rejects.toMatchObject({
+      status: 400,
     });
-    expect(JSON.parse(options.body).textQuery).toContain('Distrito Federal');
+    await expect(
+      service.search({ segment: 'ADVOCACIA', region: 'Sul', state: 'DF' }, 'p'),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
-  it('consulta detalhes somente no metodo explicito e sem wildcard', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ id: 'place_test' }));
-    await service.details('place_test', 'profile');
-    expect(fetchMock.mock.calls[0][1].headers['X-Goog-FieldMask']).toBe(DETAILS_MASK);
-    expect(DETAILS_MASK).not.toContain('*');
-  });
-  it('deduplica chamadas simultaneas sem guardar resultados em cache', async () => {
-    await Promise.all([
-      service.search({ segment: 'CONTABILIDADE' }, 'profile'),
-      service.search({ segment: 'CONTABILIDADE' }, 'profile'),
-    ]);
+  it('não busca locais se a cidade resolvida não corresponde aos filtros', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        features: [{ properties: { ...feature.properties, city: 'Outra cidade' } }],
+      }),
+    );
+    await expect(
+      service.search({ segment: 'ADVOCACIA', city: 'Brasília', state: 'DF' }, 'p'),
+    ).rejects.toMatchObject({ status: 404 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    await service.search({ segment: 'CONTABILIDADE' }, 'profile');
+  });
+  it('rejeita paginação inválida antes de consumir créditos', async () => {
+    await expect(
+      service.search({ segment: 'ADVOCACIA', state: 'DF', pageToken: 'fake_1000000' }, 'p'),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('preserva Google legado sem enviar seu identificador à Geoapify', () => {
+    expect(() => service.details('ChIJlegacy', 'p')).toThrow('preservada');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('detalhes são explícitos e limitados à feature details', async () => {
+    const result = await service.details('geoapify_51abcdef1234', 'p');
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.pathname).toBe('/v2/place-details');
+    expect(url.searchParams.get('id')).toBe('51abcdef1234');
+    expect(url.searchParams.get('features')).toBe('details');
+    expect(result.id).toBe('geoapify_51abcdef1234');
+    expect(result.attributions).toHaveLength(2);
+  });
+  it('deduplica consultas simultâneas sem guardar os resultados', async () => {
+    await Promise.all([
+      service.search({ segment: 'ADVOCACIA', state: 'DF' }, 'p'),
+      service.search({ segment: 'ADVOCACIA', state: 'DF' }, 'p'),
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
-  it('bloqueia cota local antes de chamar Google', async () => {
-    db.tx.placesUsage.aggregate.mockResolvedValue({ _sum: { calls: 300 } });
-    await expect(service.search({ segment: 'IMOBILIARIO' }, 'profile')).rejects.toMatchObject({
+  it.each(['global', 'hora', 'dia'])('limite %s bloqueia antes do transporte', async (limit) => {
+    if (limit === 'global') db.tx.placesUsage.aggregate.mockResolvedValue({ _sum: { calls: 300 } });
+    else
+      db.tx.placesUsage.findMany.mockResolvedValue([
+        { hour: limit === 'hora' ? new Date() : new Date(0), calls: limit === 'hora' ? 20 : 100 },
+      ]);
+    await expect(service.details('geoapify_51abcdef1234', 'p')).rejects.toMatchObject({
       status: 429,
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it('bloqueia limite horario por usuario', async () => {
-    db.tx.placesUsage.findMany.mockResolvedValue([{ hour: new Date(), calls: 20, details: 0 }]);
-    await expect(service.details('place_test', 'profile')).rejects.toMatchObject({ status: 429 });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-  it.each([429, 403, 500])(
-    'trata erro upstream %s sem vazar chave ou resposta bruta',
+  it.each([401, 403, 429, 500])(
+    'trata status %s sem expor segredos e sem retry',
     async (status) => {
-      fetchMock.mockResolvedValue(
-        Response.json({ error: 'test-only-key-sensitive-detail' }, { status }),
-      );
-      await expect(service.search({ segment: 'ADVOCACIA' }, 'profile')).rejects.not.toThrow(
-        'test-only-key',
+      fetchMock.mockResolvedValueOnce(Response.json({ message: 'test-server-key' }, { status }));
+      await expect(service.details('geoapify_51abcdef1234', 'p')).rejects.not.toThrow(
+        'test-server-key',
       );
       expect(fetchMock).toHaveBeenCalledTimes(1);
     },
   );
-  it('trata falha de rede sem repetir requisicao', async () => {
-    fetchMock.mockRejectedValue(new Error('sensitive transport'));
-    await expect(service.details('place_test', 'profile')).rejects.toThrow('indisponível');
+  it('não expõe erros de rede', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('test-server-key'));
+    await expect(service.details('geoapify_51abcdef1234', 'p')).rejects.toThrow('indisponível');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('recusa resposta malformada', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ features: null }));
+    await expect(service.details('geoapify_51abcdef1234', 'p')).rejects.toThrow('inválida');
   });
 });

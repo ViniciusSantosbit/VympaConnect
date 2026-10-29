@@ -10,6 +10,7 @@ vi.mock('@/features/auth/auth-api', () => ({
   authMessage: () => 'Falha de conexão ou solicitação.',
 }));
 beforeEach(() => {
+  vi.stubEnv('VITE_GEOAPIFY_MAPS_KEY', '');
   vi.resetAllMocks();
   vi.mocked(authApi).mockImplementation(async (path) => {
     if (path === '/prospecting/usage')
@@ -27,7 +28,10 @@ beforeEach(() => {
     throw new Error('Unexpected test request');
   });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+});
 function mount(crm = false) {
   return render(
     <QueryClientProvider
@@ -40,11 +44,11 @@ function mount(crm = false) {
   );
 }
 describe('Central de prospecção', () => {
-  it('mostra integração pendente sem disparar buscas ou detalhes Google', async () => {
+  it('mostra integração pendente sem disparar buscas ou detalhes Geoapify', async () => {
     mount();
-    expect(await screen.findByText('Integração Google pendente')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Buscar no Google' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Carregar mapa Google' })).toBeDisabled();
+    expect(await screen.findByText('Integração Geoapify pendente')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Buscar no Geoapify' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Carregar mapa Geoapify' })).toBeDisabled();
     await waitFor(() => expect(authApi).toHaveBeenCalledTimes(3));
     expect(vi.mocked(authApi).mock.calls.some(([path]) => path.includes('/places/'))).toBe(false);
   });
@@ -64,7 +68,7 @@ describe('Central de prospecção', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Falha');
     expect(screen.queryByText('Nenhum lead cadastrado')).not.toBeInTheDocument();
   });
-  it('consulta Google somente após clique e permite detalhes sob demanda', async () => {
+  it('consulta Geoapify somente após clique e permite detalhes sob demanda', async () => {
     vi.mocked(authApi).mockImplementation(async (path) => {
       if (path === '/prospecting/usage')
         return { configured: true, hour: 0, day: 0, hourLimit: 20, dayLimit: 100 } as never;
@@ -81,17 +85,15 @@ describe('Central de prospecção', () => {
     });
     mount();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Buscar no Google' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Buscar no Geoapify' })).toBeEnabled(),
     );
     expect(vi.mocked(authApi).mock.calls.some(([path]) => path.includes('/places/'))).toBe(false);
-    await userEvent.click(screen.getByRole('button', { name: 'Buscar no Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Buscar no Geoapify' }));
     await userEvent.click(
       await screen.findByRole('button', { name: /Estabelecimento de teste isolado/ }),
     );
     expect(vi.mocked(authApi).mock.calls.some(([path]) => path.includes('/details'))).toBe(false);
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Consultar detalhes Google (pode gerar custo)' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Consultar detalhes Geoapify' }));
     await waitFor(() =>
       expect(authApi).toHaveBeenCalledWith('/prospecting/places/test_place/details', 'POST'),
     );

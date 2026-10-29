@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   ServiceUnavailableException,
@@ -10,21 +11,53 @@ import type { ExternalPlace } from '@vympa/shared';
 import { DatabaseService } from '../../database/database.service.js';
 import type { SearchPlacesDto } from './prospecting.dto.js';
 
-export const SEARCH_MASK =
-  'places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri,places.attributions,nextPageToken';
-export const DETAILS_MASK =
-  'id,displayName,formattedAddress,location,googleMapsUri,nationalPhoneNumber,websiteUri,rating,userRatingCount,attributions';
-const terms = {
-  ADVOCACIA: ['escritórios de advocacia', 'lawyer'],
-  CONTABILIDADE: ['escritórios de contabilidade', 'accounting'],
-  IMOBILIARIO: ['imobiliárias', 'real_estate_agency'],
+export const categories = {
+  ADVOCACIA: 'office.lawyer',
+  CONTABILIDADE: 'office.accountant',
+  IMOBILIARIO: 'office.estate_agent',
 } as const;
+type Properties = {
+  place_id?: string;
+  name?: string;
+  formatted?: string;
+  lat?: number;
+  lon?: number;
+  country_code?: string;
+  state?: string;
+  state_code?: string;
+  city?: string;
+  contact?: { phone?: string; website?: string };
+  website?: string;
+  phone?: string;
+  datasource?: {
+    raw?: {
+      phone?: string;
+      website?: string;
+      'contact:phone'?: string;
+      'contact:website'?: string;
+    };
+  };
+};
+type Collection = { features: { properties: Properties }[] };
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+const regions: Record<string, string> = {
+  Norte: '-74,-14,-44,6',
+  Nordeste: '-49,-19,-32,0',
+  'Centro-Oeste': '-62,-25,-45,-7',
+  Sudeste: '-52,-26,-39,-13',
+  Sul: '-58,-34,-47,-22',
+};
 @Injectable()
 export class PlacesService {
   private readonly pending = new Map<string, Promise<unknown>>();
   constructor(private readonly db: DatabaseService) {}
   configured() {
-    return process.env.GOOGLE_PLACES_ENABLED === 'true' && !!process.env.GOOGLE_PLACES_API_KEY;
+    return process.env.GEOAPIFY_PLACES_ENABLED === 'true' && !!process.env.GEOAPIFY_API_KEY;
   }
   async usage(profileId: string) {
     const now = new Date();
@@ -49,7 +82,7 @@ export class PlacesService {
   private async reserve(profileId: string, details: boolean) {
     if (!this.configured())
       throw new ServiceUnavailableException(
-        'Integração Google pendente. Configure e autorize o uso das chaves locais.',
+        'Integração Geoapify pendente. Configure e autorize o uso das chaves locais.',
       );
     const now = new Date();
     const hour = new Date(now);
@@ -69,7 +102,7 @@ export class PlacesService {
         own.filter((row) => row.hour >= hour).reduce((sum, row) => sum + row.calls, 0) >= 20
       )
         throw new HttpException(
-          'Limite local de chamadas Google atingido. Aguarde a renovação do período.',
+          'Limite local de chamadas Geoapify atingido. Aguarde a renovação do período.',
           429,
         );
       await tx.placesUsage.upsert({
@@ -79,39 +112,95 @@ export class PlacesService {
       });
     });
   }
-  private async call(profileId: string, path: string, mask: string, body?: object) {
-    await this.reserve(profileId, !body);
+  private async call(
+    profileId: string,
+    path: string,
+    params: Record<string, string>,
+    details = false,
+  ): Promise<Collection> {
+    await this.reserve(profileId, details);
+    const url = new URL(path, 'https://api.geoapify.com');
+    url.search = new URLSearchParams({
+      ...params,
+      apiKey: process.env.GEOAPIFY_API_KEY!,
+    }).toString();
     let response: Response;
     try {
-      response = await fetch('https://places.googleapis.com/v1/' + path, {
-        method: body ? 'POST' : 'GET',
-        headers: {
-          'X-Goog-Api-Key': process.env.GOOGLE_PLACES_API_KEY!,
-          'X-Goog-FieldMask': mask,
-          'Content-Type': 'application/json',
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(8000),
-        redirect: 'error',
-      });
+      response = await fetch(url, { signal: AbortSignal.timeout(10000), redirect: 'error' });
     } catch {
       throw new ServiceUnavailableException(
-        'Google Places indisponível. Nenhuma tentativa automática será realizada.',
+        'Geoapify indisponível. Nenhuma tentativa automática será realizada.',
       );
     }
     if (response.status === 429)
-      throw new HttpException('Quota Google excedida. Confira os limites no Google Cloud.', 429);
-    if (response.status === 404)
-      throw new NotFoundException('Estabelecimento não encontrado no Google.');
+      throw new HttpException('Quota Geoapify excedida. Aguarde a renovação do limite.', 429);
+    if (response.status === 401 || response.status === 403)
+      throw new ServiceUnavailableException(
+        'Geoapify recusou a chave ou suas permissões. Confira as restrições da chave de servidor.',
+      );
+    if (response.status === 404) throw new NotFoundException('Local não encontrado na Geoapify.');
     if (!response.ok)
       throw new ServiceUnavailableException(
-        'Google Places recusou a consulta. Confira chave, APIs habilitadas e faturamento.',
+        'Geoapify recusou a consulta. Confira o serviço e a franquia do projeto.',
       );
     try {
-      return await response.json();
+      const data = await response.json();
+      if (
+        !Array.isArray(data?.features) ||
+        data.features.some(
+          (f: { properties?: unknown }) => !f?.properties || typeof f.properties !== 'object',
+        )
+      )
+        throw new Error();
+      return data as Collection;
     } catch {
-      throw new ServiceUnavailableException('Resposta Google inválida.');
+      throw new ServiceUnavailableException('Resposta Geoapify inválida.');
     }
+  }
+  private convert(p: Properties): ExternalPlace {
+    if (!p.place_id || !/^[a-f0-9]{5,2039}$/i.test(p.place_id))
+      throw new ServiceUnavailableException('Identificador Geoapify inválido.');
+    const location =
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon) &&
+      Math.abs(p.lat!) <= 90 &&
+      Math.abs(p.lon!) <= 180
+        ? { latitude: p.lat!, longitude: p.lon! }
+        : undefined;
+    return {
+      id: 'geoapify_' + p.place_id,
+      provider: 'geoapify',
+      displayName: p.name ? { text: p.name } : undefined,
+      formattedAddress: p.formatted,
+      location,
+      mapUri: location
+        ? 'https://www.openstreetmap.org/?mlat=' +
+          location.latitude +
+          '&mlon=' +
+          location.longitude +
+          '#map=17/' +
+          location.latitude +
+          '/' +
+          location.longitude
+        : undefined,
+      nationalPhoneNumber:
+        p.contact?.phone ??
+        p.phone ??
+        p.datasource?.raw?.phone ??
+        p.datasource?.raw?.['contact:phone'],
+      websiteUri:
+        p.contact?.website ??
+        p.website ??
+        p.datasource?.raw?.website ??
+        p.datasource?.raw?.['contact:website'],
+      attributions: [
+        { provider: 'Geoapify', providerUri: 'https://www.geoapify.com/' },
+        {
+          provider: '© OpenStreetMap contributors',
+          providerUri: 'https://www.openstreetmap.org/copyright',
+        },
+      ],
+    };
   }
   private async dedupe<T>(profileId: string, payload: string, fn: () => Promise<T>): Promise<T> {
     const key = profileId + createHash('sha256').update(payload).digest('hex');
@@ -125,46 +214,113 @@ export class PlacesService {
     }
   }
   search(dto: SearchPlacesDto, profileId: string) {
-    const state = brazilStates.find((s) => s[0] === dto.state);
-    const body = {
-      textQuery: [terms[dto.segment][0], dto.query, dto.city, state?.[1], dto.region, 'Brasil']
-        .filter(Boolean)
-        .join(' '),
-      includedType: terms[dto.segment][1],
-      languageCode: 'pt-BR',
-      regionCode: 'BR',
-      pageSize: 20,
-      minRating: dto.minRating || undefined,
-      pageToken: dto.pageToken || undefined,
-    };
-    return this.dedupe(profileId, JSON.stringify(body), async () => {
-      const result = (await this.call(profileId, 'places:searchText', SEARCH_MASK, body)) as {
-        places?: ExternalPlace[];
-        nextPageToken?: string;
-      };
-      const places = result.places ?? [];
+    return this.dedupe(profileId, JSON.stringify(dto), async () => {
+      if (!this.configured())
+        throw new ServiceUnavailableException(
+          'Integração Geoapify pendente. Configure a chave de servidor e a habilitação local.',
+        );
+      const state = brazilStates.find((s) => s[0] === dto.state);
+      if (state && dto.region && state[2] !== dto.region)
+        throw new BadRequestException('Estado não pertence à região selecionada.');
+      if (!state && !dto.city?.trim() && !dto.region)
+        throw new BadRequestException(
+          'Escolha uma região, estado ou cidade para delimitar a busca.',
+        );
+      const fingerprint = createHash('sha256')
+        .update(
+          JSON.stringify([dto.segment, dto.region, dto.state, dto.city?.trim(), dto.query?.trim()]),
+        )
+        .digest('hex')
+        .slice(0, 16);
+      let offset = 0;
+      if (dto.pageToken) {
+        const parts = dto.pageToken.split('_');
+        offset = Number(parts[1]);
+        if (
+          parts[0] !== fingerprint ||
+          parts.length !== 2 ||
+          !Number.isInteger(offset) ||
+          offset < 20 ||
+          offset > 80 ||
+          offset % 20
+        )
+          throw new BadRequestException('Página inválida para estes filtros.');
+      }
+      let filter = dto.region ? 'rect:' + regions[dto.region] : 'countrycode:br';
+      if (state || dto.city?.trim()) {
+        const geocode = await this.call(profileId, '/v1/geocode/search', {
+          text: [dto.city?.trim(), state?.[1], 'Brasil'].filter(Boolean).join(', '),
+          type: dto.city?.trim() ? 'city' : 'state',
+          filter: 'countrycode:br',
+          limit: '1',
+          lang: 'pt',
+        });
+        const area = geocode.features[0]?.properties;
+        if (!area?.place_id || area.country_code?.toLowerCase() !== 'br')
+          throw new NotFoundException(
+            'Localidade brasileira não encontrada. Refine cidade e estado.',
+          );
+        const matchesState = (p: Properties) =>
+          !state ||
+          p.state_code?.replace('BR-', '') === state[0] ||
+          normalize(p.state ?? '') === normalize(state[1]);
+        if (
+          !matchesState(area) ||
+          (dto.city?.trim() && normalize(area.city ?? area.name ?? '') !== normalize(dto.city))
+        )
+          throw new NotFoundException(
+            'Localidade não corresponde aos filtros. Refine cidade e estado.',
+          );
+        filter = 'place:' + area.place_id;
+      }
+      const result = await this.call(profileId, '/v2/places', {
+        categories: categories[dto.segment],
+        filter,
+        limit: '20',
+        offset: String(offset),
+        lang: 'pt',
+        ...(dto.query?.trim() ? { name: dto.query.trim() } : {}),
+      });
+      const places = result.features
+        .filter((f) => {
+          if (f.properties.country_code?.toLowerCase() !== 'br') return false;
+          if (!dto.region) return true;
+          return brazilStates.some(
+            (s) =>
+              s[2] === dto.region &&
+              (f.properties.state_code?.replace('BR-', '') === s[0] ||
+                normalize(f.properties.state ?? '') === normalize(s[1])),
+          );
+        })
+        .map((f) => this.convert(f.properties));
       const references = await this.db.placeReference.findMany({
         where: { placeId: { in: places.map((p) => p.id) } },
         include: { lead: { select: { id: true, status: true, assigneeId: true } } },
       });
       return {
         places,
-        nextPageToken: result.nextPageToken ?? null,
+        nextPageToken:
+          result.features.length === 20 && offset < 80 ? fingerprint + '_' + (offset + 20) : null,
         references,
         usage: await this.usage(profileId),
       };
     });
   }
   details(placeId: string, profileId: string) {
-    return this.dedupe(
-      profileId,
-      'details:' + placeId,
-      () =>
-        this.call(
-          profileId,
-          'places/' + encodeURIComponent(placeId) + '?languageCode=pt-BR&regionCode=BR',
-          DETAILS_MASK,
-        ) as Promise<ExternalPlace>,
-    );
+    if (!/^geoapify_[a-f0-9]{5,2039}$/i.test(placeId))
+      throw new BadRequestException(
+        'Referência antiga do Google preservada no CRM. Detalhes ativos aceitam somente locais Geoapify.',
+      );
+    return this.dedupe(profileId, 'details:' + placeId, async () => {
+      const result = await this.call(
+        profileId,
+        '/v2/place-details',
+        { id: placeId.slice(9), features: 'details', lang: 'pt' },
+        true,
+      );
+      const p = result.features[0]?.properties;
+      if (!p) throw new NotFoundException('Local não encontrado na Geoapify.');
+      return { ...this.convert(p), id: placeId };
+    });
   }
 }

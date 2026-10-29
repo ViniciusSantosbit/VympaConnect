@@ -49,7 +49,8 @@ export interface ExternalPlace {
   displayName?: { text: string };
   formattedAddress?: string;
   location?: { latitude: number; longitude: number };
-  googleMapsUri?: string;
+  provider?: 'geoapify';
+  mapUri?: string;
   nationalPhoneNumber?: string;
   websiteUri?: string;
   rating?: number;

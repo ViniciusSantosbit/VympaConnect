@@ -72,7 +72,11 @@ export function LeadDetails({
             <>
               {lead.externalReference && (
                 <p className="place-reference">
-                  Referência Google: {lead.externalReference.placeId}
+                  Referência{' '}
+                  {lead.externalReference.placeId.startsWith('geoapify_')
+                    ? 'Geoapify'
+                    : 'Google (legado)'}
+                  : {lead.externalReference.placeId}
                   <br />
                   Os dados do estabelecimento devem ser consultados sob demanda na Prospecção.
                 </p>

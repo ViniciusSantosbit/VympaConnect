@@ -30,14 +30,14 @@ import { ProspectingService } from './prospecting.service.js';
 class PlaceParams {
   @ApiProperty({ type: String })
   @IsString()
-  @Matches(/^[A-Za-z0-9_-]{5,255}$/)
+  @Matches(/^[A-Za-z0-9_-]{5,2048}$/)
   placeId!: string;
 }
 class PlaceReferencesDto {
   @ApiProperty({ type: [String], maxItems: 20 })
   @IsArray()
   @ArrayMaxSize(20)
-  @Matches(/^[A-Za-z0-9_-]{5,255}$/, { each: true })
+  @Matches(/^[A-Za-z0-9_-]{5,2048}$/, { each: true })
   placeIds!: string[];
 }
 @ApiTags('Prospecção e CRM')
@@ -50,7 +50,7 @@ export class ProspectingController {
   ) {}
   @Get('usage')
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Configuração e consumo técnico Google do administrador atual' })
+  @ApiOperation({ summary: 'Configuração e consumo técnico Geoapify do administrador atual' })
   usage(@Req() r: AuthRequest) {
     return this.places.usage(r.auth.profile!.id);
   }
@@ -62,13 +62,13 @@ export class ProspectingController {
   @Post('places/search')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Text Search New manual, com campos básicos e limites de custo' })
+  @ApiOperation({ summary: 'Busca Geoapify manual por categoria e localidade, com limites' })
   search(@Body() dto: SearchPlacesDto, @Req() r: AuthRequest) {
     return this.places.search(dto, r.auth.profile!.id);
   }
   @Post('places/references')
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Sincronizar vínculos CRM de até 20 Place IDs, sem chamar Google' })
+  @ApiOperation({ summary: 'Sincronizar vínculos CRM de até 20 Place IDs, sem chamar Geoapify' })
   references(@Body() dto: PlaceReferencesDto) {
     return this.leads.references(dto.placeIds);
   }
@@ -76,8 +76,7 @@ export class ProspectingController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Header('Cache-Control', 'no-store')
   @ApiOperation({
-    summary:
-      'Place Details New sob demanda; telefone, site e avaliação podem gerar cobrança adicional',
+    summary: 'Detalhes Geoapify sob demanda, limitados à franquia',
   })
   details(@Param() p: PlaceParams, @Req() r: AuthRequest) {
     return this.places.details(p.placeId, r.auth.profile!.id);
@@ -90,7 +89,8 @@ export class ProspectingController {
   }
   @Post('leads')
   @ApiOperation({
-    summary: 'Cadastrar lead manual ou referência Place ID única; não copiar dados Google',
+    summary:
+      'Cadastrar lead manual ou referência Place ID única; preservar referências de provedores',
   })
   create(@Body() dto: CreateLeadDto, @Req() r: AuthRequest) {
     return this.leads.create(dto, r.auth.profile!.id);

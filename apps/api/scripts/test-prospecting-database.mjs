@@ -18,8 +18,15 @@ try {
   try {
     await db.$transaction(
       async (tx) => {
-        const actor = await tx.adminProfile.findFirst({ where: { active: true } });
-        assert.ok(actor, 'Administrador local ativo necessario para testar sem criar contas.');
+        const actor =
+          (await tx.adminProfile.findFirst({ where: { active: true } })) ??
+          (await tx.adminProfile.create({
+            data: {
+              identityId: randomUUID(),
+              email: 'crm-rollback-' + randomUUID() + '@example.invalid',
+              role: 'ADMIN',
+            },
+          }));
         const scoped = new Proxy(tx, {
           get: (target, key) =>
             key === '$transaction'
@@ -27,7 +34,7 @@ try {
               : target[key],
         });
         const service = new ProspectingService(scoped);
-        const placeId = 'test_rollback_' + randomUUID();
+        const placeId = 'geoapify_' + 'a'.repeat(300) + randomUUID().replaceAll('-', '');
         const lead = await service.create(
           { placeId, segment: 'ADVOCACIA', state: 'DF', city: 'Brasília' },
           actor.id,
@@ -104,7 +111,7 @@ try {
   }
   assert.equal(await db.lead.count(), before);
   console.log(
-    'PostgreSQL local: persistencia, Place ID unico, responsavel, status, notas, contatos, acompanhamentos, dashboard e RLS aprovados. Todas as fixtures revertidas. Nenhuma chamada Google.',
+    'PostgreSQL local: persistencia, Place ID unico, responsavel, status, notas, contatos, acompanhamentos, dashboard e RLS aprovados. Todas as fixtures revertidas. Nenhuma chamada a provedores externos.',
   );
 } catch (error) {
   console.error('Integracao CRM falhou:', error.code ?? error.name);

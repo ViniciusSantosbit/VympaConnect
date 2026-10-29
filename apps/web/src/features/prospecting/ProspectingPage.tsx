@@ -72,10 +72,9 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   const [leadId, setLeadId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult | null>(null);
-  const [googleContext, setGoogleContext] = useState<Filters & { minRating?: number }>(empty);
+  const [placesContext, setPlacesContext] = useState<Filters>(empty);
   const [place, setPlace] = useState<ExternalPlace | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [minRating, setMinRating] = useState('0');
   const params = new URLSearchParams(Object.entries(applied).filter(([, v]) => v));
   params.set('page', String(page));
   const leads = useQuery({
@@ -106,19 +105,18 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   });
   const search = useMutation({
     mutationFn: (pageToken?: string) => {
-      const context = pageToken ? googleContext : { ...filters, minRating: Number(minRating) };
+      const context = pageToken ? placesContext : { ...filters };
       return authApi<SearchResult>('/prospecting/places/search', 'POST', {
         segment: context.segment || 'ADVOCACIA',
         region: context.region || undefined,
         state: context.state || undefined,
         city: context.city || undefined,
         query: context.query || undefined,
-        minRating: context.minRating,
         pageToken,
       });
     },
     onMutate: (pageToken) => {
-      if (!pageToken) setGoogleContext({ ...filters, minRating: Number(minRating) });
+      if (!pageToken) setPlacesContext({ ...filters });
     },
     onSuccess: (data) => {
       setResults(data);
@@ -192,10 +190,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
     if (status === 'LOST' && !lossReason?.trim()) return;
     change.mutate({ path: `leads/${id}/status`, method: 'PATCH', body: { status, lossReason } });
   }
-  const mapsConfigured =
-    import.meta.env.VITE_GOOGLE_MAPS_ENABLED === 'true' &&
-    !!import.meta.env.VITE_GOOGLE_MAPS_BROWSER_KEY &&
-    !!import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
+  const mapsConfigured = !!import.meta.env.VITE_GEOAPIFY_MAPS_KEY;
   const statuses: Record<string, LeadStatus> = {};
   linked.forEach((r) => {
     statuses[r.placeId] = r.lead.status;
@@ -275,10 +270,10 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         <div className="integration-pending">
           <MapPin size={21} />
           <div>
-            <strong>Integração Google pendente</strong>
+            <strong>Integração Geoapify pendente</strong>
             <p>
-              O CRM está disponível. Busca e mapa precisam de chaves restritas e autorização de uso.
-              Nenhuma consulta Google é feita ao abrir esta página.
+              O CRM está disponível. A pesquisa de locais depende da chave de servidor. As pesquisas
+              são feitas somente por sua ação.
             </p>
           </div>
         </div>
@@ -339,16 +334,6 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
             />
           </label>
           <label>
-            Avaliação mínima (Google)
-            <select value={minRating} onChange={(e) => setMinRating(e.target.value)}>
-              {['0', '3', '3.5', '4', '4.5'].map((v) => (
-                <option key={v} value={v}>
-                  {v === '0' ? 'Sem filtro' : `${v} estrelas`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
             Status comercial
             <select value={filters.status} onChange={(e) => filterField('status', e.target.value)}>
               <option value="">Todos</option>
@@ -391,11 +376,11 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
             }}
           >
             <Search size={15} />
-            {search.isPending ? 'Buscando…' : 'Buscar no Google'}
+            {search.isPending ? 'Buscando…' : 'Buscar no Geoapify'}
           </Button>
           <p className="prospect-note">
             Até 20 resultados por busca. Novas páginas e detalhes consomem chamadas. Status e
-            responsável filtram vínculos locais; avaliação aplica-se somente à busca Google.
+            responsável filtram vínculos locais. Geocodificação também consome chamadas.
           </p>
           <a
             href="https://servicodados.ibge.gov.br/api/docs/localidades"
@@ -436,14 +421,14 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       <MapPin size={34} />
                       <h2>Explore o Brasil</h2>
                       <p>
-                        O mapa usa Google Maps e é carregado apenas por sua ação. O carregamento
-                        pode ser cobrado separadamente das buscas Places.
+                        O mapa usa Geoapify e é carregado apenas por sua ação. O carregamento
+                        consome a franquia de tiles separadamente das buscas.
                       </p>
                       <Button disabled={!mapsConfigured} onClick={() => setMapLoaded(true)}>
-                        Carregar mapa Google
+                        Carregar mapa Geoapify
                       </Button>
                       {!mapsConfigured && (
-                        <small>Configure chave de navegador, Map ID e habilitação local.</small>
+                        <small>Configure a chave de mapas Geoapify no ambiente local.</small>
                       )}
                     </div>
                   )}
@@ -451,7 +436,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                 <div className="places-results">
                   <h2>Resultados da busca</h2>
                   {search.isPending ? (
-                    <p role="status">Consultando Google…</p>
+                    <p role="status">Consultando Geoapify…</p>
                   ) : results ? (
                     shownPlaces.length ? (
                       shownPlaces.map((p) => (
@@ -471,7 +456,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       ))
                     ) : (
                       <p>
-                        Nenhum resultado para os filtros. O Google não garante cobertura completa.
+                        Nenhum resultado para os filtros. O Geoapify não garante cobertura completa.
                       </p>
                     )
                   ) : (
@@ -487,26 +472,26 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       disabled={search.isPending}
                       onClick={() => search.mutate(results.nextPageToken!)}
                     >
-                      Próxima página Google
+                      Próxima página Geoapify
                     </Button>
                   )}
-                  {results && <GoogleCredit places={results.places} />}
+                  {results && <ProviderCredit places={results.places} />}
                 </div>
               </div>
               {activePlace && (
                 <div className="place-panel">
                   <div>
                     <h2>{activePlace.displayName?.text ?? 'Nome indisponível'}</h2>
-                    <span>{segmentLabels[googleContext.segment || 'ADVOCACIA']}</span>
+                    <span>{segmentLabels[placesContext.segment || 'ADVOCACIA']}</span>
                     <p>{activePlace.formattedAddress ?? 'Endereço indisponível'}</p>
-                    {safeLink(activePlace.googleMapsUri) && (
+                    {safeLink(activePlace.mapUri) && (
                       <a
                         className="text-link"
-                        href={safeLink(activePlace.googleMapsUri)}
+                        href={safeLink(activePlace.mapUri)}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Abrir Google Maps <ExternalLink size={13} />
+                        Abrir OpenStreetMap <ExternalLink size={13} />
                       </a>
                     )}
                     <p>
@@ -520,26 +505,20 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                         rel="noreferrer"
                         className="text-link"
                       >
-                        Site informado pelo Google
+                        Site informado pelo Geoapify
                       </a>
                     )}
-                    <p>
-                      Avaliação:{' '}
-                      {activePlace.rating !== undefined
-                        ? `${activePlace.rating} / 5 (${activePlace.userRatingCount !== undefined ? activePlace.userRatingCount + ' avaliações' : 'quantidade não informada'})`
-                        : 'Não consultada ou não disponível'}
-                    </p>
                     <Button
                       variant="outline"
                       disabled={details.isPending}
                       onClick={() => details.mutate(activePlace.id)}
                     >
-                      Consultar detalhes Google (pode gerar custo)
+                      Consultar detalhes Geoapify
                     </Button>
                   </div>
                   <div>
                     <p>
-                      Somente o Place ID será salvo; nome, endereço e telefone do Google não serão
+                      Somente o Place ID será salvo; nome, endereço e telefone do Geoapify não serão
                       copiados.
                     </p>
                     {linked.find((r) => r.placeId === activePlace.id) ? (
@@ -558,10 +537,10 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                             path: 'leads',
                             body: {
                               placeId: activePlace.id,
-                              segment: googleContext.segment || 'ADVOCACIA',
-                              region: googleContext.region || undefined,
-                              state: googleContext.state || undefined,
-                              city: googleContext.city || undefined,
+                              segment: placesContext.segment || 'ADVOCACIA',
+                              region: placesContext.region || undefined,
+                              state: placesContext.state || undefined,
+                              city: placesContext.city || undefined,
                             },
                           })
                         }
@@ -570,7 +549,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       </Button>
                     )}
                   </div>
-                  <GoogleCredit places={[activePlace]} />
+                  <ProviderCredit places={[activePlace]} />
                 </div>
               )}
             </>
@@ -598,7 +577,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
               ) : !leads.data?.items.length ? (
                 <EmptyState
                   title="Nenhum lead cadastrado"
-                  description="Adicione uma oportunidade manualmente ou selecione um estabelecimento na busca Google."
+                  description="Adicione uma oportunidade manualmente ou selecione um estabelecimento na busca Geoapify."
                 />
               ) : view === 'list' ? (
                 <div className="leads-list">
@@ -607,7 +586,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
                       <span>
                         <strong>
                           {l.companyName ??
-                            `Referência Google · ${l.externalReference?.placeId.slice(0, 12) ?? l.id.slice(0, 8)}`}
+                            `Referência Geoapify · ${l.externalReference?.placeId.slice(0, 12) ?? l.id.slice(0, 8)}`}
                         </strong>
                         <small>
                           {segmentLabels[l.segment]} ·{' '}
@@ -702,13 +681,13 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         </div>
       </div>
       <p className="prospect-note">
-        Dados próprios e dados Google são separados. <Link to="/crm">Abrir CRM</Link> ·{' '}
-        <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">
-          Privacidade Google
+        Dados próprios e dados Geoapify são separados. <Link to="/crm">Abrir CRM</Link> ·{' '}
+        <a href="https://www.geoapify.com/privacy-policy/" target="_blank" rel="noreferrer">
+          Privacidade Geoapify
         </a>{' '}
         ·{' '}
-        <a href="https://maps.google.com/help/terms_maps/" target="_blank" rel="noreferrer">
-          Termos Google Maps
+        <a href="https://www.geoapify.com/terms-and-conditions/" target="_blank" rel="noreferrer">
+          Termos Geoapify
         </a>
       </p>
       {leadId && (
@@ -718,7 +697,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         <DialogContent>
           <DialogTitle>Novo lead próprio</DialogTitle>
           <DialogDescription>
-            Cadastre apenas dados obtidos legitimamente. Não copie conteúdo do Google.
+            Cadastre apenas dados obtidos legitimamente. Não copie conteúdo do Geoapify.
           </DialogDescription>
           <form
             className="lead-fields"
@@ -761,16 +740,21 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
     </section>
   );
 }
-function GoogleCredit({ places }: { places: ExternalPlace[] }) {
-  const credits = places.flatMap((p) => p.attributions ?? []);
+function ProviderCredit({ places }: { places: ExternalPlace[] }) {
+  const credits = [
+    ...new Map(
+      [
+        { provider: 'Geoapify', providerUri: 'https://www.geoapify.com/' },
+        {
+          provider: '© OpenStreetMap contributors',
+          providerUri: 'https://www.openstreetmap.org/copyright',
+        },
+        ...places.flatMap((p) => p.attributions ?? []),
+      ].map((a) => [a.providerUri ?? a.provider, a]),
+    ).values(),
+  ];
   return (
-    <div className="google-credit">
-      <img
-        src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png"
-        alt="Powered by Google"
-        width="120"
-        height="14"
-      />
+    <div className="provider-credit">
       {credits.map((a, i) => (
         <span key={i}>
           {safeLink(a.providerUri) ? (
