@@ -91,7 +91,8 @@ test('CRM: cadastro, Kanban, persistência por recarga e layout sem chave Geoapi
   await expect(page.getByText('Nenhum lead cadastrado')).toBeVisible();
   const filterToggle = page.getByRole('button', { name: 'Filtros', exact: true });
   if (await filterToggle.isVisible()) await filterToggle.click();
-  await expect(page.getByRole('button', { name: 'Buscar no Geoapify' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Buscar no Geoapify' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Explorar mapa', exact: true })).toHaveCount(0);
   if (await filterToggle.isVisible()) await filterToggle.click();
   await page.getByRole('button', { name: 'Novo lead' }).click();
   await page.getByLabel('Nome da empresa').fill('Fixture CRM isolada');

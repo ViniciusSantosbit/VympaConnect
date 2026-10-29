@@ -1,7 +1,6 @@
 import { NavLink, Link } from 'react-router';
 import { modules } from '@vympa/shared';
 import {
-  Blocks,
   LayoutDashboard,
   Radar,
   Workflow,
@@ -17,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { VympaLogo } from '@/components/shared/VympaLogo';
 const icons: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   prospecting: Radar,
@@ -50,7 +50,7 @@ export function Sidebar({
         onClick={onNavigate}
       >
         <span className="brand-mark">
-          <Blocks size={25} />
+          <VympaLogo decorative />
         </span>
         <span className="sidebar-copy">
           VYMPA<small>CONNECT</small>
@@ -58,7 +58,9 @@ export function Sidebar({
       </Link>
       <div className="workspace-label">
         <span className="sidebar-copy">SEU WORKSPACE</span>
-        <span className="workspace-marker">V</span>
+        <span className="workspace-marker">
+          <VympaLogo decorative />
+        </span>
       </div>
       <nav aria-label="Navegação principal">
         {modules

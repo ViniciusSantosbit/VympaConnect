@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { brazilStates } from '@vympa/shared';
+import { brazilStates, placesPageSize } from '@vympa/shared';
 import type { ExternalPlace } from '@vympa/shared';
 import { DatabaseService } from '../../database/database.service.js';
 import type { SearchPlacesDto } from './prospecting.dto.js';
@@ -49,7 +49,7 @@ const regions: Record<string, string> = {
   Norte: '-74,-14,-44,6',
   Nordeste: '-49,-19,-32,0',
   'Centro-Oeste': '-62,-25,-45,-7',
-  Sudeste: '-52,-26,-39,-13',
+  Sudeste: '-54,-27,-39,-13',
   Sul: '-58,-34,-47,-22',
 };
 @Injectable()
@@ -250,6 +250,7 @@ export class PlacesService {
       const fingerprint = createHash('sha256')
         .update(
           JSON.stringify([
+            placesPageSize,
             dto.segment,
             dto.region,
             dto.state,
@@ -267,10 +268,10 @@ export class PlacesService {
         if (
           parts[0] !== fingerprint ||
           parts.length !== 2 ||
-          !Number.isInteger(offset) ||
-          offset < 20 ||
-          offset > 80 ||
-          offset % 20
+          !Number.isSafeInteger(offset) ||
+          offset < placesPageSize ||
+          offset > Number.MAX_SAFE_INTEGER - placesPageSize ||
+          offset % placesPageSize
         )
           throw new BadRequestException('Página inválida para estes filtros.');
       }
@@ -283,7 +284,7 @@ export class PlacesService {
         const geocode = await this.call(profileId, '/v1/geocode/search', {
           text: [dto.city?.trim(), state?.[1], 'Brasil'].filter(Boolean).join(', '),
           type: dto.city?.trim() ? 'city' : 'state',
-          filter: 'countrycode:br',
+          filter: dto.region ? 'countrycode:br|rect:' + regions[dto.region] : 'countrycode:br',
           limit: '1',
           lang: 'pt',
         });
@@ -308,7 +309,7 @@ export class PlacesService {
       const result = await this.call(profileId, '/v2/places', {
         categories: categories[dto.segment],
         filter,
-        limit: '20',
+        limit: String(placesPageSize),
         offset: String(offset),
         lang: 'pt',
         ...(dto.query?.trim() ? { name: dto.query.trim() } : {}),
@@ -332,7 +333,9 @@ export class PlacesService {
       return {
         places,
         nextPageToken:
-          result.features.length === 20 && offset < 80 ? fingerprint + '_' + (offset + 20) : null,
+          result.features.length === placesPageSize
+            ? fingerprint + '_' + (offset + placesPageSize)
+            : null,
         references,
         usage: await this.usage(profileId),
       };

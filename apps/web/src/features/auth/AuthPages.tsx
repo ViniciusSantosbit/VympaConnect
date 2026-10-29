@@ -1,8 +1,9 @@
 import { useState, type FormEvent, type PropsWithChildren } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
-import { ShieldCheck, Fingerprint, ArrowRight, Blocks } from 'lucide-react';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { VympaLogo, BrandLoading } from '@/components/shared/VympaLogo';
 import { authApi, authMessage } from './auth-api';
 import { useAuth } from './AuthProvider';
 import { nextAuthPath } from './ProtectedRoute';
@@ -12,7 +13,10 @@ function AuthShell({ title, children }: PropsWithChildren<{ title: string }>) {
     <main className="auth-shell">
       <section className="auth-story">
         <Link to="/login" className="brand">
-          <Blocks className="text-primary" /> VYMPA <small>CONNECT</small>
+          <VympaLogo decorative />
+          <span>
+            VYMPA<small>CONNECT</small>
+          </span>
         </Link>
         <div>
           <span className="eyebrow">ACESSO PRIVADO · VYMPA</span>
@@ -29,7 +33,7 @@ function AuthShell({ title, children }: PropsWithChildren<{ title: string }>) {
         <small>VYMPA Connect · Workspace interno</small>
       </section>
       <section className="auth-card">
-        <Fingerprint className="text-primary mb-6" size={30} />
+        <VympaLogo className="auth-card-logo" />
         <h2>{title}</h2>
         {children}
       </section>
@@ -190,7 +194,7 @@ export function MfaPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  if (loading) return <p role="status">Restaurando sessão…</p>;
+  if (loading) return <BrandLoading>Restaurando sessão…</BrandLoading>;
   if (!session) return <Navigate to="/login" replace />;
   if (!['mfa_enroll', 'mfa_verify'].includes(session.state))
     return <Navigate to={nextAuthPath(session.state)} replace />;
@@ -327,7 +331,7 @@ export function CompleteAccessPage({ invitation = false }: { invitation?: boolea
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  if (loading) return <p role="status">Restaurando sessão…</p>;
+  if (loading) return <BrandLoading>Restaurando sessão…</BrandLoading>;
   if (!session) return <Navigate to="/login" replace />;
   if (session.state !== (invitation ? 'invitation' : 'password'))
     return <Navigate to={nextAuthPath(session.state)} replace />;

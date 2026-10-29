@@ -929,3 +929,22 @@
     animation: none;
   }
 }
+
+/* Official artwork is displayed intact; functional navigation icons stay unchanged. */
+.admin-shell .brand-mark,
+.admin-drawer .brand-mark,
+.welcome-icon,
+.workspace-marker {
+  background: transparent;
+  border: 0;
+}
+.brand-mark .vympa-logo {
+  width: 40px;
+}
+.workspace-marker .vympa-logo {
+  width: 20px;
+}
+.welcome-icon .vympa-logo {
+  width: 48px;
+  max-width: 100%;
+}

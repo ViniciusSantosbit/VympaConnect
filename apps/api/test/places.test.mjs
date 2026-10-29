@@ -49,7 +49,7 @@ describe('Geoapify official transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
   it.each(Object.entries(categories))(
-    'usa categoria %s, Brasil e até 20 resultados',
+    'usa categoria %s, Brasil e até 500 resultados',
     async (segment, category) => {
       const result = await service.search({ segment, state: 'DF', query: 'Nome' }, 'profile');
       expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -60,7 +60,7 @@ describe('Geoapify official transport', () => {
       expect(url.pathname).toBe('/v2/places');
       expect(url.searchParams.get('categories')).toBe(category);
       expect(url.searchParams.get('filter')).toBe('place:51abcdef1234');
-      expect(url.searchParams.get('limit')).toBe('20');
+      expect(url.searchParams.get('limit')).toBe('500');
       expect(url.searchParams.get('name')).toBe('Nome');
       expect(JSON.stringify(result)).not.toContain('test-server-key');
       expect(result.places[0].id).toBe('geoapify_51abcdef1234');
@@ -197,4 +197,27 @@ describe('Auditoria de área e falhas', () => {
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+});
+
+it('pagina além dos antigos 100 resultados sem alterar os filtros', async () => {
+  const features = Array.from({ length: 500 }, (_, i) => ({
+    properties: { ...feature.properties, place_id: '51' + i.toString(16).padStart(8, '0') },
+  }));
+  fetchMock.mockImplementation(async () => Response.json({ features }));
+  const dto = { segment: 'ADVOCACIA', region: 'Centro-Oeste' };
+  const first = await service.search(dto, 'p');
+  expect(first.places).toHaveLength(500);
+  expect(first.nextPageToken).toMatch(/_500$/);
+  const second = await service.search({ ...dto, pageToken: first.nextPageToken }, 'p');
+  expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get('offset')).toBe('500');
+  expect(second.nextPageToken).toMatch(/_1000$/);
+  await expect(
+    service.search({ ...dto, region: 'Sul', pageToken: first.nextPageToken }, 'p'),
+  ).rejects.toMatchObject({ status: 400 });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+it('delimita geocodificação pela região, sem restringir o nome quando vazio', async () => {
+  await service.search({ segment: 'ADVOCACIA', region: 'Centro-Oeste', state: 'DF' }, 'p');
+  const geo = new URL(fetchMock.mock.calls[0][0]);
+  expect(geo.searchParams.get('filter')).toBe('countrycode:br|rect:-62,-25,-45,-7');
 });

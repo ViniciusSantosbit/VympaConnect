@@ -653,53 +653,142 @@ h1 span {
   }
 }
 
+.vympa-logo {
+  display: block;
+  width: 44px;
+  height: auto;
+  aspect-ratio: 311 / 304;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.brand-loading {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px;
+  color: #b8c8d7;
+  background: #080e16;
+}
+.brand-loading .vympa-logo {
+  width: 72px;
+}
 .auth-shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   align-items: center;
-  gap: 6vw;
-  padding: 6vw;
-  background: radial-gradient(at 0% 25%, #112932, #060c14 65%);
+  gap: clamp(40px, 7vw, 140px);
+  padding: clamp(24px, 4vh, 64px) clamp(32px, 7vw, 144px);
+  isolation: isolate;
+  position: relative;
+  background: #080e16;
+}
+.auth-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgb(5 17 29 / 72%) 0%,
+      rgb(6 17 30 / 84%) 42%,
+      rgb(8 14 22 / 96%) 76%,
+      #080e16 100%
+    ),
+    linear-gradient(0deg, rgb(8 14 22 / 55%), transparent 55%), url('/brand/login-office.png');
+  background-size: cover;
+  background-position: center;
+}
+.auth-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 12% 30%, rgb(31 104 146 / 15%), transparent 60%);
 }
 .auth-story {
-  min-height: 75dvh;
+  min-height: min(76dvh, 820px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 60px;
+  gap: 48px;
+  min-width: 0;
 }
 .auth-story .brand {
   padding: 0;
+  gap: 16px;
+}
+.auth-story .brand .vympa-logo {
+  width: 58px;
 }
 .auth-story h1 {
-  margin-top: 28px;
-  font-size: clamp(32px, 3.4vw, 56px);
+  margin: 28px 0 24px;
+  font-size: clamp(32px, 3.2vw, 60px);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -1.8px;
+  text-wrap: balance;
+}
+.auth-story h1 span {
+  color: #b7cbd8;
 }
 .auth-story p {
-  max-width: 420px;
-  color: #8ca4b8;
+  max-width: 390px;
+  color: #b2c3d1;
   line-height: 1.9;
 }
-.auth-story small {
-  color: #6c859b;
+.auth-story > small {
+  color: #9bafc0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 .auth-trust {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #68dda8;
+  color: #85dfb8;
+  font-size: 12px;
   margin-top: 32px;
 }
 .auth-card {
+  min-width: 0;
   width: 100%;
   max-width: 460px;
   justify-self: center;
-  padding: 40px;
-  border: 1px solid #203549;
-  border-radius: 18px;
-  background: #0c1622;
-  box-shadow: 0 24px 80px #0004;
+  padding: clamp(28px, 3vw, 44px);
+  border: 1px solid rgb(141 235 190 / 32%);
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    rgb(104 221 168 / 8%),
+    rgb(35 91 73 / 7%) 45%,
+    rgb(10 29 25 / 12%)
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  backdrop-filter: blur(14px) saturate(135%);
+  box-shadow:
+    0 28px 90px #0005,
+    0 0 48px rgb(104 221 168 / 5%),
+    inset 0 1px rgb(207 255 230 / 25%),
+    inset 0 -1px rgb(104 221 168 / 10%);
+}
+.auth-card-logo {
+  width: 60px;
+  margin-bottom: 28px;
+  border-radius: 12px;
+}
+.auth-card input {
+  height: 46px;
+  background: rgb(5 20 17 / 32%);
+  border-color: rgb(145 202 173 / 30%);
+}
+.auth-card .auth-form > button {
+  min-height: 46px;
 }
 .auth-card h2 {
   font-size: 25px;
@@ -791,9 +880,9 @@ h1 span {
 }
 @media (max-width: 760px) {
   .auth-shell {
-    grid-template-columns: 1fr;
-    padding: 28px 20px;
-    gap: 32px;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 28px 20px 40px;
+    gap: 28px;
   }
   .auth-story {
     min-height: auto;
@@ -804,7 +893,24 @@ h1 span {
     display: none;
   }
   .auth-story h1 {
-    font-size: 32px;
+    font-size: clamp(28px, 6vw, 36px);
+    letter-spacing: -1px;
+    margin: 0;
+  }
+  .auth-story > div {
+    display: none;
+  }
+  .auth-story .brand {
+    justify-content: center;
+  }
+  .auth-story .brand .vympa-logo {
+    width: 48px;
+  }
+  .auth-shell::before {
+    background-image:
+      linear-gradient(180deg, rgb(7 18 31 / 84%), rgb(8 14 22 / 97%) 70%),
+      url('/brand/login-office.png');
+    background-position: 38% center;
   }
   .auth-card {
     padding: 28px 24px;
@@ -813,5 +919,29 @@ h1 span {
     flex-direction: column;
     align-items: stretch;
     padding: 16px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 960px) {
+  .auth-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding: 40px 24px;
+  }
+  .auth-story {
+    min-height: auto;
+  }
+  .auth-story > div,
+  .auth-story > small {
+    display: none;
+  }
+  .auth-story .brand {
+    justify-content: center;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .auth-card {
+    background: rgb(12 22 34 / 96%);
   }
 }

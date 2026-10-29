@@ -1,3 +1,4 @@
+export const placesPageSize = 500;
 export const leadStatuses = ['NOT_CONTACTED', 'CONTACTED', 'NEGOTIATING', 'WON', 'LOST'] as const;
 export type LeadStatus = (typeof leadStatuses)[number];
 export const leadSegments = ['ADVOCACIA', 'CONTABILIDADE', 'IMOBILIARIO'] as const;

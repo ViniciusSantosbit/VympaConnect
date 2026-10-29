@@ -12,7 +12,6 @@ import {
   ListFilter,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   Users,
   Wallet,
@@ -31,6 +30,7 @@ import {
 import type { DashboardSummary, DashboardMetric } from '@vympa/shared';
 import { authApi } from '@/features/auth/auth-api';
 import { Button } from '@/components/ui/button';
+import { VympaLogo } from '@/components/shared/VympaLogo';
 import { Metric, money } from '@/features/clients/commercial-ui';
 import {
   ChartContainer,
@@ -133,7 +133,7 @@ export function DashboardPage() {
           <div className="dashboard-welcome">
             <div>
               <span className="welcome-icon">
-                <Sparkles size={22} />
+                <VympaLogo />
               </span>
               <div>
                 <span className="eyebrow">UM NOVO PONTO DE PARTIDA</span>

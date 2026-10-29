@@ -62,7 +62,7 @@ describe('Central de prospecção', () => {
     expect(await screen.findByText('Integração Geoapify pendente')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Buscar no Geoapify' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Carregar mapa Geoapify' })).toBeDisabled();
-    await waitFor(() => expect(authApi).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(authApi).toHaveBeenCalledTimes(2));
     expect(vi.mocked(authApi).mock.calls.some(([path]) => path.includes('/places/'))).toBe(false);
   });
   it('mantém CRM vazio operacional sem inventar leads', async () => {
@@ -222,4 +222,45 @@ it('reconcilia conflito concorrente e oferece abrir o lead já existente', async
   expect(await screen.findByRole('button', { name: 'Abrir lead no CRM' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: 'Adicionar à prospecção' })).not.toBeInTheDocument();
   expect(vi.mocked(authApi).mock.calls.filter(([p]) => p.endsWith('/leads'))).toHaveLength(1);
+});
+
+it('separa as visualizações e não consulta Places no CRM', async () => {
+  mount(true);
+  expect(await screen.findByText('Nenhum lead cadastrado')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Leads salvos' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Kanban' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Explorar mapa' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Buscar no Geoapify' })).not.toBeInTheDocument();
+  expect(
+    vi
+      .mocked(authApi)
+      .mock.calls.some(([path]) => path.endsWith('/usage') || path.includes('/places/')),
+  ).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Leads salvos' }));
+  expect(screen.getByRole('heading', { name: 'Leads da VYMPA' })).toBeInTheDocument();
+});
+it('Prospecção mantém mapa e filtros sem lista ou kanban e envia a localidade selecionada', async () => {
+  externalFixtures([]);
+  mount();
+  expect(screen.queryByRole('button', { name: 'Leads salvos' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Kanban' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Novo lead' })).not.toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText('Região'), 'Sudeste');
+  await userEvent.selectOptions(screen.getByLabelText('Estado'), 'SP');
+  await userEvent.type(screen.getByLabelText('Cidade'), 'São Paulo');
+  await userEvent.click(await screen.findByRole('button', { name: 'Buscar no Geoapify' }));
+  await waitFor(() =>
+    expect(authApi).toHaveBeenCalledWith(
+      '/prospecting/places/search',
+      'POST',
+      expect.objectContaining({
+        segment: 'ADVOCACIA',
+        region: 'Sudeste',
+        state: 'SP',
+        city: 'São Paulo',
+        query: undefined,
+      }),
+    ),
+  );
+  expect(vi.mocked(authApi).mock.calls.some(([path]) => path.includes('/leads?'))).toBe(false);
 });

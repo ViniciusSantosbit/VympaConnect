@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   brazilStates,
+  placesPageSize,
   leadSegments,
   segmentLabels,
   leadStatuses,
@@ -66,7 +67,8 @@ const safeLink = (url: string | undefined) => {
 export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   const [searchParams] = useSearchParams();
   const client = useQueryClient();
-  const [view, setView] = useState<'map' | 'list' | 'kanban'>(crm ? 'kanban' : 'map');
+  const [crmView, setCrmView] = useState<'list' | 'kanban'>('kanban');
+  const view = crm ? crmView : 'map';
   const [filters, setFilters] = useState<Filters>(empty);
   const [applied, setApplied] = useState<Filters>(empty);
   const [page, setPage] = useState(1);
@@ -83,6 +85,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   params.set('page', String(page));
   const leads = useQuery({
     queryKey: ['leads', applied, page],
+    enabled: crm,
     queryFn: () =>
       authApi<{ items: LeadRecord[]; total: number; pageSize: number }>(
         '/prospecting/leads?' + params,
@@ -96,6 +99,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   });
   const usage = useQuery({
     queryKey: ['places-usage'],
+    enabled: !crm,
     queryFn: () =>
       authApi<{
         configured: boolean;
@@ -130,15 +134,18 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
     },
   });
   const references = useQuery({
-    queryKey: ['place-references', results?.places.map((p) => p.id)],
+    queryKey: ['place-references', selected],
     queryFn: () =>
       authApi<SearchResult['references']>('/prospecting/places/references', 'POST', {
-        placeIds: results!.places.map((p) => p.id),
+        placeIds: [selected!],
       }),
-    enabled: !!results?.places.length,
+    enabled: !!selected && !!results?.places.some((p) => p.id === selected),
     retry: false,
   });
-  const linked = references.data ?? results?.references ?? [];
+  const linked = [
+    ...(results?.references.filter((r) => r.placeId !== selected) ?? []),
+    ...(references.data ?? results?.references.filter((r) => r.placeId === selected) ?? []),
+  ];
   const details = useMutation({
     mutationFn: (id: string) =>
       authApi<ExternalPlace>('/prospecting/places/' + encodeURIComponent(id) + '/details', 'POST'),
@@ -204,14 +211,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
   leads.data?.items.forEach((l) => {
     if (l.externalReference) statuses[l.externalReference.placeId] = l.status;
   });
-  const shownPlaces =
-    results?.places.filter((p) => {
-      const ref = linked.find((r) => r.placeId === p.id);
-      return (
-        (!filters.status || (statuses[p.id] ?? 'NOT_CONTACTED') === filters.status) &&
-        (!filters.assigneeId || ref?.lead.assigneeId === filters.assigneeId)
-      );
-    }) ?? [];
+  const shownPlaces = results?.places ?? [];
   const activePlace =
     place?.id === selected ? place : results?.places.find((p) => p.id === selected);
   function select(id: string) {
@@ -231,28 +231,32 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         title={crm ? 'CRM comercial' : 'Central de prospecção'}
         description="Encontre oportunidades. Construa relacionamentos. Acompanhe o próximo passo."
       >
-        <Button onClick={() => setCreate(true)}>
-          <Plus size={16} />
-          Novo lead
-        </Button>
+        {crm && (
+          <Button onClick={() => setCreate(true)}>
+            <Plus size={16} />
+            Novo lead
+          </Button>
+        )}
       </PageHeader>
       <div className="prospecting-toolbar">
         <div className="view-switch">
-          {(['map', 'list', 'kanban'] as const).map((mode, i) => (
+          {(crm ? (['list', 'kanban'] as const) : (['map'] as const)).map((mode) => (
             <Button
               key={mode}
               variant={view === mode ? 'default' : 'ghost'}
-              onClick={() => setView(mode)}
+              onClick={() => {
+                if (mode !== 'map') setCrmView(mode);
+              }}
               aria-pressed={view === mode}
             >
-              {i === 0 ? (
+              {mode === 'map' ? (
                 <MapPin size={15} />
-              ) : i === 1 ? (
+              ) : mode === 'list' ? (
                 <LayoutList size={15} />
               ) : (
                 <Columns3 size={15} />
               )}{' '}
-              {['Explorar mapa', 'Leads salvos', 'Kanban'][i]}
+              {mode === 'map' ? 'Explorar mapa' : mode === 'list' ? 'Leads salvos' : 'Kanban'}
             </Button>
           ))}
         </div>
@@ -265,14 +269,16 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
           <SlidersHorizontal size={16} />
           Filtros
         </Button>
-        <span className="usage-label">
-          Places:{' '}
-          {usage.data
-            ? `${usage.data.hour}/${usage.data.hourLimit} nesta hora · ${usage.data.day}/${usage.data.dayLimit} no dia UTC`
-            : 'uso não carregado'}
-        </span>
+        {!crm && (
+          <span className="usage-label">
+            Places:{' '}
+            {usage.data
+              ? `${usage.data.hour}/${usage.data.hourLimit} nesta hora · ${usage.data.day}/${usage.data.dayLimit} no dia UTC`
+              : 'uso não carregado'}
+          </span>
+        )}
       </div>
-      {!usage.data?.configured && (
+      {!crm && !usage.data?.configured && (
         <div className="integration-pending">
           <MapPin size={21} />
           <div>
@@ -293,7 +299,7 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
               value={filters.segment}
               onChange={(e) => filterField('segment', e.target.value)}
             >
-              <option value="">Todos (busca: Advocacia)</option>
+              <option value="">{crm ? 'Todos os segmentos' : 'Advocacia (padrão)'}</option>
               {leadSegments.map((s) => (
                 <option key={s} value={s}>
                   {segmentLabels[s]}
@@ -332,62 +338,75 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
             />
           </label>
           <label>
-            Pesquisa textual
+            {crm ? 'Pesquisa textual' : 'Nome do escritório (opcional)'}
             <Input
               value={filters.query}
               onChange={(e) => filterField('query', e.target.value)}
               maxLength={120}
             />
           </label>
-          <label>
-            Status comercial
-            <select value={filters.status} onChange={(e) => filterField('status', e.target.value)}>
-              <option value="">Todos</option>
-              {leadStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {statusLabels[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Responsável
-            <select
-              value={filters.assigneeId}
-              onChange={(e) => filterField('assigneeId', e.target.value)}
+          {crm && (
+            <>
+              <label>
+                Status comercial
+                <select
+                  value={filters.status}
+                  onChange={(e) => filterField('status', e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {leadStatuses.map((s) => (
+                    <option key={s} value={s}>
+                      {statusLabels[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Responsável
+                <select
+                  value={filters.assigneeId}
+                  onChange={(e) => filterField('assigneeId', e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {owners.data?.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+          {crm ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApplied(filters);
+                setPage(1);
+                setShowFilters(false);
+              }}
             >
-              <option value="">Todos</option>
-              {owners.data?.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.email}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setApplied(filters);
-              setPage(1);
-              setShowFilters(false);
-            }}
-          >
-            Filtrar CRM
-          </Button>
-          <Button
-            disabled={!usage.data?.configured || search.isPending}
-            onClick={() => {
-              search.mutate({ context: { ...filters } });
-              setShowFilters(false);
-            }}
-          >
-            <Search size={15} />
-            {search.isPending ? 'Buscando…' : 'Buscar no Geoapify'}
-          </Button>
-          <p className="prospect-note">
-            Até 20 resultados por busca. Novas páginas e detalhes consomem chamadas. Status e
-            responsável filtram vínculos locais. Geocodificação também consome chamadas.
-          </p>
+              Filtrar CRM
+            </Button>
+          ) : (
+            <Button
+              disabled={!usage.data?.configured || search.isPending}
+              onClick={() => {
+                search.mutate({ context: { ...filters } });
+                setShowFilters(false);
+              }}
+            >
+              <Search size={15} />
+              {search.isPending ? 'Buscando…' : 'Buscar no Geoapify'}
+            </Button>
+          )}
+          {!crm && (
+            <p className="prospect-note">
+              Até {placesPageSize} resultados reais por página, conforme a cobertura da Geoapify.
+              Deixe o nome vazio para buscar todos do segmento na localidade. Novas páginas,
+              detalhes e geocodificação consomem chamadas e créditos da API.
+            </p>
+          )}
           <a
             href="https://servicodados.ibge.gov.br/api/docs/localidades"
             target="_blank"
@@ -731,7 +750,8 @@ export function ProspectingPage({ crm = false }: { crm?: boolean }) {
         </div>
       </div>
       <p className="prospect-note">
-        Dados próprios e dados Geoapify são separados. <Link to="/crm">Abrir CRM</Link> ·{' '}
+        Dados próprios e dados Geoapify são separados.{' '}
+        <Link to={crm ? '/prospecting' : '/crm'}>{crm ? 'Explorar mapa' : 'Abrir CRM'}</Link> ·{' '}
         <a href="https://www.geoapify.com/privacy-policy/" target="_blank" rel="noreferrer">
           Privacidade Geoapify
         </a>{' '}
