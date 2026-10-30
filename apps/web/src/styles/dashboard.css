@@ -721,9 +721,11 @@
   width: min(290px, 85vw);
   max-width: none;
   height: 100dvh;
-  /* O Tailwind 4 centraliza o Dialog com a propriedade `translate`, que `transform` não zera. */
+  /* O Tailwind 4 centraliza o Dialog com a propriedade `translate`, que `transform` não zera;
+     zerar as variáveis do utilitário sobrevive à minificação, que funde `translate` em `transform`. */
   transform: none;
-  translate: none;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
   border-radius: 0;
   background: #0b121c;
   padding: 0;
