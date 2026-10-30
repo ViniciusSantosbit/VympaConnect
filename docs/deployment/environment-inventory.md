@@ -78,3 +78,5 @@ Arquivo privado ignorado: apps/api/.env.production.local.
 Nenhuma dessas variáveis foi enviada à Vercel nesta etapa. Variáveis Gemini/Geoapify de produção ainda pendem de seleção/autorização e configuração. Não utilizar o arquivo produtivo em Preview.
 
 Atualização: DATABASE_URL de runtime PRESENTE e conexão Prisma validada com papel restrito; SUPABASE_SSL_CA PRESENTE e TLS validado. Backup offline usa DATABASE_BACKUP_KEY em .env.backup-recovery.local, sem envio à Vercel. Nenhum segredo foi versionado ou impresso.
+
+Vercel Production (vympaconnect-api): 14 variáveis da whitelist do script configure-vercel-production-env.mjs configuradas e confirmadas como Secret. Credenciais administrativas e de backup excluídas. Preview continua sem credenciais remotas configuradas, aguardando criação do projeto isolado.

@@ -38,3 +38,5 @@ Build API aprovado. Novas validações e armazenamento de rate limit: suíte API
 ## Evidências remotas após autorização específica
 
 Bootstrap: 1 OWNER ativo e 1 evento de auditoria. Runtime: PostgreSQL e Prisma aprovados usando papel sem privilégios administrativos, schemas auth/storage inacessíveis, escrita técnica de rate limit revertida por rollback. Backup criptografado e catálogo pg_restore validados; restauração completa pendente. Vercel: CLI autenticada, dois projetos criados e domínio solicitado associado/verified=true. Nenhum deployment ou teste MFA real executado.
+
+Variáveis Vercel: 14 nomes verificados por env ls como Hidden / Secret / Production no projeto vympaconnect-api após autorização explícita. Nenhum segredo exibido. Script de configuração passou ESLint e foi executado com sucesso. Preview não criado ainda; nenhum teste/deployment de Preview executado.
