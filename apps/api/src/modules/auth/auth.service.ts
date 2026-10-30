@@ -242,7 +242,8 @@ export class AuthService {
           recovery: session.recovery,
         };
       },
-      { timeout: 30000 },
+      // Requisições paralelas da mesma sessão aguardam o bloqueio em fila em vez de falhar após 2 s.
+      { timeout: 30000, maxWait: 15000 },
     );
   }
 

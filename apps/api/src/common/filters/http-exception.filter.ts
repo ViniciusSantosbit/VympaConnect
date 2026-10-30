@@ -10,7 +10,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-    if (status >= 500) this.logger.error({ status, requestId: request.id }, 'Erro interno na API');
+    if (status >= 500)
+      this.logger.error(
+        {
+          status,
+          requestId: request.id,
+          // Apenas classe e código: mensagens de erro podem conter dados sensíveis.
+          error:
+            exception instanceof Error
+              ? { name: exception.name, code: (exception as { code?: unknown }).code }
+              : undefined,
+        },
+        'Erro interno na API',
+      );
     const payload = exception instanceof HttpException ? exception.getResponse() : null;
     const message =
       status >= 500

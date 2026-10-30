@@ -125,7 +125,7 @@ export function databaseOptions(connectionString: string) {
   }
   return {
     connectionString,
-    ...(databaseTarget() === 'production' ? { max: 2, idleTimeoutMillis: 10000 } : {}),
+    ...(databaseTarget() === 'production' ? { max: 5, idleTimeoutMillis: 10000 } : {}),
     connectionTimeoutMillis: 5000,
     ...(databaseTarget() !== 'local'
       ? {

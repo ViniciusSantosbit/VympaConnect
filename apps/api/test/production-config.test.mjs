@@ -36,7 +36,7 @@ describe('Configuração produtiva sem fallback local', () => {
     expect(authSettings(process.env).secure).toBe(true);
     expect(() => loadDatabaseEnvironment()).not.toThrow();
     expect(databaseOptions(process.env.DATABASE_URL)).toMatchObject({
-      max: 2,
+      max: 5,
       ssl: { rejectUnauthorized: true },
     });
   });

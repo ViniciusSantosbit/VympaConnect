@@ -1,8 +1,23 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "regions": [
+    "pdx1"
+  ],
   "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/api",
   "installCommand": "HUSKY=0 npm ci --include=dev --workspaces --include-workspace-root",
-  "functions": { "api/index.mjs": { "includeFiles": "dist/vercel.mjs" } },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+  "functions": {
+    "api/index.mjs": {
+      "includeFiles": "dist/vercel.mjs",
+      "regions": [
+        "pdx1"
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
 }
