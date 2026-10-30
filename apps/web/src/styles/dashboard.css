@@ -720,15 +720,22 @@
   bottom: 0;
   width: min(290px, 85vw);
   max-width: none;
+  height: 100dvh;
+  /* O Tailwind 4 centraliza o Dialog com a propriedade `translate`, que `transform` não zera. */
   transform: none;
+  translate: none;
   border-radius: 0;
   background: #0b121c;
   padding: 0;
   display: block;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .admin-drawer .sidebar-content {
-  padding-top: 34px;
+  padding-top: calc(34px + env(safe-area-inset-top));
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  padding-left: calc(15px + env(safe-area-inset-left));
 }
 @media (min-width: 1600px) {
   .dashboard-page {
