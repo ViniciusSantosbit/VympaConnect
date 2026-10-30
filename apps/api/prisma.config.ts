@@ -1,7 +1,6 @@
 import { defineConfig } from 'prisma/config';
 import { databaseTarget, loadDatabaseEnvironment } from './src/config/database-environment.ts';
 // A CLI nunca recebe datasource remoto nesta etapa, mesmo se invocada diretamente.
-if (databaseTarget() !== 'local') throw new Error('CLI Prisma remota bloqueada nesta etapa.');
 const args = process.argv.slice(2);
 if (
   args.includes('reset') ||
@@ -12,6 +11,8 @@ const offline =
   args.includes('generate') ||
   args.includes('validate') ||
   (args.includes('diff') && args.includes('--from-schema') && args.includes('--to-schema'));
+if (!offline && databaseTarget() !== 'local')
+  throw new Error('CLI Prisma remota bloqueada: migrations exigem autorização separada.');
 if (!offline) loadDatabaseEnvironment();
 export default defineConfig({
   schema: 'prisma/schema.prisma',

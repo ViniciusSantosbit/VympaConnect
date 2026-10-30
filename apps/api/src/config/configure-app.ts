@@ -1,7 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import helmet from 'helmet';
+import { createRequire } from 'node:module';
+import type { HelmetOptions } from 'helmet';
+import type { RequestHandler } from 'express';
+const helmet: (options?: HelmetOptions) => RequestHandler = createRequire(import.meta.url)(
+  'helmet',
+);
 import { Logger } from 'nestjs-pino';
 import { HttpExceptionFilter } from '../common/filters/http-exception.filter.js';
 export function configureApp(app: INestApplication) {

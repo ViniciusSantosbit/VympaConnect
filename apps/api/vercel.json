@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nestjs",
-  "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/api"
+  "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/api",
+  "installCommand": "HUSKY=0 npm ci --include=dev --workspaces --include-workspace-root"
 }

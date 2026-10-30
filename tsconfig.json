@@ -1,0 +1,1 @@
+{ "extends": "./apps/api/tsconfig.json" }
