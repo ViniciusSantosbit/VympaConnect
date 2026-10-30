@@ -1,0 +1,7 @@
+{
+  "name": "vympaconnect-api",
+  "framework": "nestjs",
+  "rootDirectory": "apps/api",
+  "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/api",
+  "publicSource": false
+}

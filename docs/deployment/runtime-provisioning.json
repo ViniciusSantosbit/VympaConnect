@@ -1,0 +1,11 @@
+{
+  "projectRef": "qxuqxonpgundilvnajtl",
+  "role": "vympa_runtime",
+  "tables": 39,
+  "bypassRls": false,
+  "adminPrivileges": false,
+  "backupEncrypted": true,
+  "backupCatalogValidated": true,
+  "fullRestoreTested": false,
+  "createdAt": "2026-10-30T12:05:54.584Z"
+}

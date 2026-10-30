@@ -1,0 +1,7 @@
+{
+  "name": "vympaconnect",
+  "framework": "vite",
+  "rootDirectory": "apps/web",
+  "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/web",
+  "publicSource": false
+}

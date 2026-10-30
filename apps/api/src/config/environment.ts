@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { assertDatabaseUrl } from './database-environment.js';
 import { authSettings } from '../modules/auth/auth-config.js';
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -37,10 +38,17 @@ export function validateEnvironment(input: Record<string, unknown>): Environment
       'Configuração de ambiente inválida: ' +
         result.error.issues.map((issue) => issue.path.join('.') + ': ' + issue.message).join('; '),
     );
-  if (result.data.NODE_ENV === 'production')
-    throw new Error(
-      'Execução não autorizada para produção: concluir validação da infraestrutura Auth isolada, políticas e recuperação operacional.',
-    );
-  authSettings(input);
+  const auth = authSettings(input);
+  if (result.data.NODE_ENV === 'production') {
+    if (auth.mode !== 'production' || input.VYMPA_DATABASE_TARGET !== 'production')
+      throw new Error('Execução não autorizada: configuração produtiva explícita obrigatória.');
+    assertDatabaseUrl(result.data.DATABASE_URL, 'production');
+    if (result.data.CORS_ORIGINS.length !== 1 || result.data.CORS_ORIGINS[0] !== auth.origin)
+      throw new Error('CORS produtivo deve corresponder à origem HTTPS do painel.');
+    if (['debug', 'trace'].includes(result.data.LOG_LEVEL))
+      throw new Error('Log detalhado não autorizado em produção.');
+    if (input.AUTH_ENABLE_BREAK_GLASS === 'true')
+      throw new Error('Break-glass não pode ser habilitado no runtime de produção.');
+  }
   return result.data;
 }

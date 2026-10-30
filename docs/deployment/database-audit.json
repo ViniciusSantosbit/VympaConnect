@@ -1,0 +1,291 @@
+{
+  "projectRef": "qxuqxonpgundilvnajtl",
+  "checkedAt": "2026-10-30T11:11:24.184Z",
+  "readOnly": true,
+  "identity": {
+    "database": "postgres",
+    "role": "postgres",
+    "version": "PostgreSQL 17.11 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+  },
+  "tables": [
+    {
+      "schemaname": "public",
+      "tablename": "system_metadata",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "admin_audit_events",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "admin_invitations",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "admin_profiles",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "ai_conversations",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "ai_costs",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "ai_messages",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "auth_sessions",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "client_activities",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "client_contacts",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "client_services",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "clients",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "contract_amendments",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "contract_documents",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "contract_history",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "contract_services",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "contracts",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "discount_policies",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "finance_audit_events",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "financial_categories",
+      "rowsecurity": true,
+      "count": "13"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "financial_opening_balances",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "financial_transactions",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "goal_activities",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "goal_assignments",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "goal_manual_updates",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "goal_progress_snapshots",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "goals",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "investments",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "lead_events",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "lead_follow_ups",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "leads",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "mfa_recovery_requests",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "place_references",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "places_usage",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "proposal_versions",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "proposals",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "recurring_transactions",
+      "rowsecurity": true,
+      "count": "0"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "service_offerings",
+      "rowsecurity": true,
+      "count": "4"
+    },
+    {
+      "schemaname": "vympa_private",
+      "tablename": "service_price_versions",
+      "rowsecurity": true,
+      "count": "0"
+    }
+  ],
+  "migrations": [
+    {
+      "name": "20261026000100_foundation",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261027000200_administrative_auth",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261028000300_prospecting",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261028000400_geoapify_references",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261028000500_finance",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261029000100_clients_contracts",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261029000200_goals",
+      "state": "APLICADA_CHECKSUM_OK"
+    },
+    {
+      "name": "20261029000300_ai_chat",
+      "state": "APLICADA_CHECKSUM_OK"
+    }
+  ],
+  "unknownHistory": [],
+  "connectionRole": [
+    {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolbypassrls": true
+    }
+  ],
+  "authUserCount": "0"
+}

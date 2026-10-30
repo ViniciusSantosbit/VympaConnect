@@ -11,6 +11,8 @@ import { randomUUID } from 'node:crypto';
 import { loadDatabaseEnvironment } from './config/database-environment.js';
 loadDatabaseEnvironment();
 import { validateEnvironment } from './config/environment.js';
+import { DatabaseService } from './database/database.service.js';
+import { DatabaseThrottlerStorage } from './config/database-throttler.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule, CsrfGuard } from './modules/auth/auth.module.js';
 import { JwtSessionGuard, RolesGuard } from './modules/auth/auth.guards.js';
@@ -51,7 +53,16 @@ import { ProspectingModule } from './modules/prospecting/prospecting.module.js';
         },
       }),
     }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRootAsync({
+      imports: [DatabaseModule],
+      inject: [DatabaseService],
+      useFactory: (db: DatabaseService) => ({
+        throttlers: [{ ttl: 60_000, limit: 100 }],
+        ...(process.env.NODE_ENV === 'production'
+          ? { storage: new DatabaseThrottlerStorage(db) }
+          : {}),
+      }),
+    }),
     DatabaseModule,
     HealthModule,
     DashboardModule,

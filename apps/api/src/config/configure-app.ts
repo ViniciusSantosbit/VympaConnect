@@ -7,6 +7,8 @@ import { HttpExceptionFilter } from '../common/filters/http-exception.filter.js'
 export function configureApp(app: INestApplication) {
   const config = app.get(ConfigService);
   app.setGlobalPrefix('api/v1');
+  // Confiar somente no salto do proxy gerenciado quando executado na Vercel.
+  if (process.env.VERCEL === '1') app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.enableCors({
     origin: config.getOrThrow<string[]>('CORS_ORIGINS'),
     credentials: true,
