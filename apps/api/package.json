@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "node scripts/database-command.mjs local dev",
-    "build": "prisma generate && nest build",
+    "build": "prisma generate && nest build && node scripts/bundle-vercel.mjs",
     "start": "node scripts/database-command.mjs local start",
     "typecheck": "prisma generate && tsc --noEmit",
     "test": "npm run build && node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --runInBand",
@@ -69,6 +69,7 @@
     "@types/express": "5.0.6",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
+    "esbuild": "0.25.12",
     "jest": "30.5.2",
     "prisma": "7.10.1",
     "supertest": "7.3.1"

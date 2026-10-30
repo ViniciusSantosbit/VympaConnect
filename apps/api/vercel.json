@@ -1,6 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nestjs",
+  "framework": null,
   "buildCommand": "cd ../.. && npm run build -w @vympa/shared && npm run build -w @vympa/api",
-  "installCommand": "HUSKY=0 npm ci --include=dev --workspaces --include-workspace-root"
+  "installCommand": "HUSKY=0 npm ci --include=dev --workspaces --include-workspace-root",
+  "functions": { "api/index.mjs": { "includeFiles": "dist/vercel.mjs" } },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
